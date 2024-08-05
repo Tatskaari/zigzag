@@ -20,6 +20,10 @@ pub fn build(b: *std.Build) void {
 
     const limine = b.dependency("limine", .{});
 
+    const arch = b.addModule("arch", .{
+        .root_source_file = .{.cwd_relative = "src/arch/index.zig"},
+    });
+
     const assets = b.addModule("assets", .{
         .root_source_file = .{.cwd_relative = "src/assets/assets.zig"},
     });
@@ -30,6 +34,7 @@ pub fn build(b: *std.Build) void {
 
     drivers.addImport("limine", limine.module("limine"));
     drivers.addImport("assets", assets);
+    drivers.addImport("arch", arch);
 
 
     // Build the kernel itself.
@@ -45,6 +50,8 @@ pub fn build(b: *std.Build) void {
 
     kernel.root_module.addImport("limine", limine.module("limine"));
     kernel.root_module.addImport("drivers", drivers);
+    kernel.root_module.addImport("arch", arch);
+
     kernel.setLinkerScriptPath(b.path("linker.ld"));
 
     // Disable LTO. This prevents issues with limine requests
