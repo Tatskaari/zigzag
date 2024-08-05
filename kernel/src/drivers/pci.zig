@@ -15,6 +15,7 @@ const Class = enum(u8) {
     Multimedia,
     Memory,
     Bridge,
+    _
 };
 
 pub const PciAddress = packed struct {
@@ -27,18 +28,18 @@ pub const PciAddress = packed struct {
 };
 
 fn format_class(class: u8) [*:0]const u8 {
-    switch (class) {
-        @intFromEnum(Class.Unclassified),
-        @intFromEnum(Class.MassStorage),
-        @intFromEnum(Class.Network),
-        @intFromEnum(Class.Display),
-        @intFromEnum(Class.Multimedia),
-        @intFromEnum(Class.Memory),
-        @intFromEnum(Class.Bridge) => {
-            const c : Class = @enumFromInt(class);
+    const c : Class = @enumFromInt(class);
+    switch (c) {
+        Class.Unclassified,
+        Class.MassStorage,
+        Class.Network,
+        Class.Display,
+        Class.Multimedia,
+        Class.Bridge,
+        Class.Memory => {
             return @tagName(c);
         },
-        else => return "Unknown class",
+        _ => return "Unknown",
     }
 }
 
