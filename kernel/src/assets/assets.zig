@@ -1,0 +1,1 @@
+ pub const vga_font = @embedFile("fonts/vga8x16.bin");
