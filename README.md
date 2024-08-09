@@ -1,25 +1,25 @@
-# Limine Zig Template
+# zigzag is an operating system with a terrible name
+It's written from scratch, with love, in zig. 
 
-This repository will demonstrate how to set up a basic x86-64 kernel in Zig using Limine.
+## Roadmap
 
-## How to use this?
-
-### Dependencies
-
-Any `make` command depends on GNU make (`gmake`) and is expected to be run using it. This usually means using `make` on most GNU/Linux distros, or `gmake` on other non-GNU systems.
-
-All `make all*` targets depend on Zig, at least version 0.11.x.
-
-Additionally, building an ISO with `make all` requires `xorriso`, and building a HDD/USB image with `make all-hdd` requires `sgdisk` (usually from `gdisk` or `gptfdisk` packages) and `mtools`.
-
-### Makefile targets
-
-Running `make all` will compile the kernel (from the `kernel/` directory) and then generate a bootable ISO image.
-
-Running `make all-hdd` will compile the kernel and then generate a raw image suitable to be flashed onto a USB stick or hard drive/SSD.
-
-Running `make run` will build the kernel and a bootable ISO (equivalent to make all) and then run it using `qemu` (if installed).
-
-Running `make run-hdd` will build the kernel and a raw HDD image (equivalent to make all-hdd) and then run it using `qemu` (if installed).
-
-The `run-uefi` and `run-hdd-uefi` targets are equivalent to their non `-uefi` counterparts except that they boot `qemu` using a UEFI-compatible firmware.
+- [x] VGA graphics mode
+- [x] VGA terminal
+- [x] Initialise the interrupt descriptor table
+- [x] MoreCore allocator
+- [x] Read the root system descriptor table
+- [x] Read the MADT
+- [x] PCI device discovery
+- [ ] Keyboard input via the io-apic
+- [ ] SATA/IDE driver via the io-apic
+- [ ] Read only tar filesystem
+- [ ] Page allocator
+- [ ] Read/write FAT-32 filesystem
+- [ ] open and write syscalls
+- [ ] Create a standard library for userspace programmes
+- [ ] ELF loading
+- [ ] Exec syscall
+- [ ] Basic userspace 
+- [ ] Scheduler
+- [ ] Multi-processing
+- [ ] Fork syscall
