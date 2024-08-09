@@ -1,19 +1,20 @@
 const kernel = @import("kernel");
 const rsdt = @import("rsdt.zig");
 
+const MADT_SIG: [4]u8 = [4]u8{'A', 'P', 'I', 'C'};
 const IO_APIC_TYPE = 1;
 
-pub const DeviceListEntry = struct {
-    type: u8,
-    len: u8,
+pub const DeviceListEntry = extern struct {
+    type: u8 align(1),
+    len: u8 align(1),
 };
 
-pub const IoApicEntry = struct {
-    hdr: DeviceListEntry,
-    id: u8,
-    reserved: u8,
-    addr: u32,
-    global_system_interupt_base: u32,
+pub const IoApicEntry = extern struct {
+    hdr: DeviceListEntry align(1),
+    id: u8 align(1),
+    reserved: u8 align(1),
+    addr: u32 align(1),
+    global_system_interupt_base: u32 align(1),
 };
 
 pub const MADT = extern struct {
@@ -26,7 +27,7 @@ pub const MADT = extern struct {
     }
 
     pub fn find_device_entry_by_type(self: *MADT, t: u8) *DeviceListEntry {
-        const entry: *DeviceListEntry = @ptrFromInt(@intFromPtr(&self.flags) + @sizeOf(u32));
+        var entry: *DeviceListEntry = @ptrFromInt(@intFromPtr(&self.flags) + @sizeOf(u32));
         // There are 9 types. We don't need to loop unbounded here.
         for(0..9) |_| {
             if (entry.type == t) {
@@ -45,3 +46,10 @@ pub const MADT = extern struct {
         return kernel.mem.physical_to_virtual(@intCast(io_apic_entry.addr));
     }
 };
+
+pub var madt : *MADT = undefined;
+
+pub fn init() void {
+    const hdr = rsdt.find_hdr(MADT_SIG) catch @panic("cound't find MADT header");
+    madt = @alignCast(@ptrCast(hdr));
+}

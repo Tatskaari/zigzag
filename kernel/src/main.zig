@@ -32,20 +32,10 @@ export fn _start() callconv(.C) noreturn {
 
     interrupts.init();
     kernel.mem.init();
-
-
-    drivers.rsdt.init();
-
-
+    drivers.init();
 
     drivers.pci.lspci();
 
-    drivers.terminal.print("This should come before {}\n", .{10});
-    asm volatile ("int $0x10");
-    drivers.terminal.print("This should come after {}\n", .{10});
-
-
-
-    // We're done, just hang...
-    @panic("test panic");
+    drivers.terminal.print("ioapic addr 0x{x}", .{drivers.madt.madt.get_io_apic_addr()});
+    done();
 }

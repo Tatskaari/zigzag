@@ -43,14 +43,8 @@ pub const Header = extern struct {
 
 // Root System Description Table
 const RSDT = extern struct {
-    header: Header align(1),
-
-    fn entries(self: *RSDT) []u32 {
-        // The RSDT header is follow by a list of addresses
-        const vs : [*]u32 = @ptrFromInt(@intFromPtr(&self.header) + @sizeOf(Header));
-        const count = (self.header.length - @sizeOf(Header)) / @sizeOf(u32);
-        return vs[0..count];
-    }
+    header: Header,
+    entries: [256]u32 align(1),
 };
 
 var rsdp: *RSDP = undefined;
@@ -79,7 +73,7 @@ pub fn init() void {
 
 // find_hdr searches for a SDT header in the RSDT
 pub fn find_hdr(signature: [4]u8) !*Header {
-    for(rsdt.entries()) |addr| {
+    for(rsdt.entries) |addr| {
         const hdr: *Header = @ptrFromInt(kernel.mem.physical_to_virtual(addr));
         if(std.mem.eql(u8, &hdr.signature, &signature)) {
             return hdr;
