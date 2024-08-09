@@ -10,7 +10,8 @@ It's written from scratch, with love, in zig.
 - [x] Read the root system descriptor table
 - [x] Read the MADT
 - [x] PCI device discovery
-- [ ] Keyboard input via the io-apic
+- [ ] Timers (sleep, )
+- [ ] PS/2 Keyboard input via the io-apic
 - [ ] SATA/IDE driver via the io-apic
 - [ ] Read only tar filesystem
 - [ ] Page allocator
@@ -20,6 +21,7 @@ It's written from scratch, with love, in zig.
 - [ ] ELF loading
 - [ ] Exec syscall
 - [ ] Basic userspace 
-- [ ] Scheduler
+- [ ] Round robin scheduler
 - [ ] Multi-processing
 - [ ] Fork syscall
+- [ ] Co-operative scheduler for sub-processes 

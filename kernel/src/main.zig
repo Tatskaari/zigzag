@@ -16,6 +16,7 @@ inline fn done() noreturn {
     }
 }
 
+// TODO this should panic over serial until we have set up the terminal
 pub fn panic(message: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
     drivers.terminal.print("{s}", .{message});
     done();
@@ -23,17 +24,19 @@ pub fn panic(message: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noretu
 
 // The following will be our kernel's entry point.
 export fn _start() callconv(.C) noreturn {
+    drivers.terminal.init();
+    // Ensure the bootloader actually understands our base revision (see spec).
+    if (!base_revision.is_supported()) {
+        @panic("boot error: limine bootloader base revision not supported");
+    }
+
     interrupts.init();
     kernel.mem.init();
 
-    // Ensure the bootloader actually understands our base revision (see spec).
-    if (!base_revision.is_supported()) {
-        done();
-    }
 
-    drivers.terminal.init() catch {
-        done();
-    };
+    drivers.rsdt.init();
+
+
 
     drivers.pci.lspci();
 
@@ -41,7 +44,6 @@ export fn _start() callconv(.C) noreturn {
     asm volatile ("int $0x10");
     drivers.terminal.print("This should come after {}\n", .{10});
 
-    drivers.rsdt.init() catch unreachable;
 
 
     // We're done, just hang...

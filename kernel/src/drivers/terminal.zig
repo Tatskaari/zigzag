@@ -5,10 +5,6 @@ const vga = @import("vga.zig");
 
 pub export var framebuffer_request: limine.FramebufferRequest = .{};
 
-const InitError = error {
-    NoFrameBuffers,
-};
-
 pub const Terminal = struct {
     vga: vga.VGA = vga.VGA{.fb = undefined},
     col: usize = 0,
@@ -72,10 +68,10 @@ pub var tty = Terminal{
 };
 
 
-pub fn init() InitError!void {
+pub fn init() void {
     if (framebuffer_request.response) |framebuffer_response| {
         if (framebuffer_response.framebuffer_count < 1) {
-            return InitError.NoFrameBuffers;
+            @panic("failed to init terminal: no frame buffer found");
         }
 
         tty.init(framebuffer_response.framebuffers()[0]);

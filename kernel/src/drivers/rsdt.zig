@@ -12,7 +12,7 @@ const terminal = @import("terminal.zig");
 const pic = @import("pic.zig");
 
 
-const Error = error{
+pub const Error = error{
     HeaderNotFound,
 };
 
@@ -56,7 +56,7 @@ const RSDT = extern struct {
 var rsdp: *RSDP = undefined;
 var rsdt : *RSDT = undefined;
 
-pub fn init() !void {
+pub fn init() void {
     const maybe_rsdp_response = rsdp_req.response;
     if (maybe_rsdp_response == null) {
         @panic("missing limine rsdp response");
