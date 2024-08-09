@@ -43,7 +43,7 @@ pub const Header = extern struct {
 
 // Root System Description Table
 const RSDT = extern struct {
-    header: Header,
+    header: Header align(1),
     entries: [256]u32 align(1),
 };
 
