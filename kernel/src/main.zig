@@ -1,6 +1,7 @@
 const limine = @import("limine");
 const std = @import("std");
 const drivers = @import("drivers");
+const kernel = @import("kernel");
 
 const interrupts = @import("interrupts.zig");
 
@@ -15,9 +16,15 @@ inline fn done() noreturn {
     }
 }
 
+pub fn panic(message: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
+    drivers.terminal.print("{s}", .{message});
+    done();
+}
+
 // The following will be our kernel's entry point.
 export fn _start() callconv(.C) noreturn {
     interrupts.init();
+    kernel.mem.init();
 
     // Ensure the bootloader actually understands our base revision (see spec).
     if (!base_revision.is_supported()) {
@@ -34,7 +41,9 @@ export fn _start() callconv(.C) noreturn {
     asm volatile ("int $0x10");
     drivers.terminal.print("This should come after {}\n", .{10});
 
+    drivers.rsdt.init() catch unreachable;
+
 
     // We're done, just hang...
-    done();
+    @panic("test panic");
 }

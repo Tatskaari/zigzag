@@ -28,6 +28,12 @@ pub fn build(b: *std.Build) void {
         .root_source_file = .{.cwd_relative = "src/assets/assets.zig"},
     });
 
+    const kernel = b.addModule("kernel", .{
+        .root_source_file = .{.cwd_relative = "src/kernel/index.zig"},
+    });
+
+    kernel.addImport("limine", limine.module("limine"));
+
     const drivers = b.addModule("drivers", .{
         .root_source_file = .{.cwd_relative = "src/drivers/index.zig"},
     });
@@ -35,11 +41,12 @@ pub fn build(b: *std.Build) void {
     drivers.addImport("limine", limine.module("limine"));
     drivers.addImport("assets", assets);
     drivers.addImport("arch", arch);
+    drivers.addImport("kernel", kernel);
 
 
     // Build the kernel itself.
     const optimize = b.standardOptimizeOption(.{});
-    const kernel = b.addExecutable(.{
+    const root = b.addExecutable(.{
         .name = "kernel",
         .root_source_file = b.path("src/main.zig"),
         .target = b.resolveTargetQuery(target),
@@ -48,14 +55,15 @@ pub fn build(b: *std.Build) void {
         .pic = true,
     });
 
-    kernel.root_module.addImport("limine", limine.module("limine"));
-    kernel.root_module.addImport("drivers", drivers);
-    kernel.root_module.addImport("arch", arch);
+    root.root_module.addImport("limine", limine.module("limine"));
+    root.root_module.addImport("drivers", drivers);
+    root.root_module.addImport("arch", arch);
+    root.root_module.addImport("kernel", kernel);
 
-    kernel.setLinkerScriptPath(b.path("linker.ld"));
+    root.setLinkerScriptPath(b.path("linker.ld"));
 
     // Disable LTO. This prevents issues with limine requests
-    kernel.want_lto = false;
+    root.want_lto = false;
 
-    b.installArtifact(kernel);
+    b.installArtifact(root);
 }
