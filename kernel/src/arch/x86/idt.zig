@@ -1,16 +1,16 @@
 const terminal = @import("drivers").terminal;
 
-const IDTEntry = extern struct {
-    isr_low: u16,
-    kernel_cs: u16,
-    ist: u8,
-    flags: u8,
-    isr_mid: u16,
-    isr_high: u32,
+const IDTEntry = packed struct {
+    isr_low: u16, // first 16 bits of the function pointer
+    kernel_cs: u16, // The code segment for the kernel. This should be whatever you set it to when you set this in the GDT.
+    ist: u8 = 0, // Legacy nonense. Set this to 0.
+    flags: u8, // Sets the gate type, dpl, and p fields
+    isr_mid: u16, // The next 16 bits of the function pointer
+    isr_high: u32, // The last 32 bits of the function pointer
     reserved: u32 = 0,
 };
 
-// Interrupt Descriptor Table Register:
+// Interrupt Descriptor Table Register
 const IDTR = packed struct(u80) {
     limit: u16,
     base: u64,
@@ -28,8 +28,6 @@ pub fn setDescriptor(vector: usize, isrPtr: usize, dpl: u8) void {
     entry.kernel_cs = getCS();
     //trap gate + present + DPL
     entry.flags = 0b1110 | ((dpl & 0b11) << 5) | (1 << 7);
-    //ist disabled
-    entry.ist = 0;
 }
 
 pub const InterruptStackFrame = extern struct {

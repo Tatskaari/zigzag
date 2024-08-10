@@ -48,8 +48,10 @@ pub const MADT = extern struct {
 };
 
 pub var madt : *MADT = undefined;
+pub var io_apic_addr : usize = undefined;
 
 pub fn init() void {
     const hdr = rsdt.find_hdr(MADT_SIG) catch @panic("cound't find MADT header");
     madt = @alignCast(@ptrCast(hdr));
+    io_apic_addr = madt.get_io_apic_addr();
 }

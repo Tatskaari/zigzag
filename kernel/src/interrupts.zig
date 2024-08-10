@@ -88,10 +88,13 @@ export fn simdErrISR(state: *arch.idt.InterruptStackFrame) callconv(.Interrupt) 
 }
 
 // This is just a PoC to prove I can trigger and dispatch software interrupts
-export fn customISR(state: *arch.idt.InterruptStackFrame) callconv(.Interrupt) void {
-    terminal.print("Custom! eip: 0x{x}, cs: 0x{x}, eflags: 0x{x}\n", .{state.eip, state.cs, state.eflags});
+export fn spuriousIntISR(state: *arch.idt.InterruptStackFrame) callconv(.Interrupt) void {
+    terminal.print("Spurious interrupt! eip: 0x{x}, cs: 0x{x}, eflags: 0x{x}\n", .{state.eip, state.cs, state.eflags});
+    while(true){}
 }
 
+
+// Sets up the basic CPU intrupts
 pub fn init() void {
     arch.idt.setDescriptor(0, @intFromPtr(&divErrISR), 0);
     arch.idt.setDescriptor(1, @intFromPtr(&debugISR), 0);
@@ -112,8 +115,7 @@ pub fn init() void {
     arch.idt.setDescriptor(18, @intFromPtr(&machineCheckISR), 0);
     arch.idt.setDescriptor(19, @intFromPtr(&simdErrISR), 0);
 
-    // Just 'cus we can
-    arch.idt.setDescriptor(0x10, @intFromPtr(&customISR), 0x8E);
+    arch.idt.setDescriptor(0xFF, @intFromPtr(&spuriousIntISR), 0);
 
     arch.idt.load();
 }
