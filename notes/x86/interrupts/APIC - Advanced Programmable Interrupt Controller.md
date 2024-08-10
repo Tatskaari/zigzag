@@ -1,6 +1,6 @@
-PICs enable us to configure how these should be handled i.e. masking interrupt, setting priority, and buffering them. The APIC is a more advanced PIC that was introduced with multi-core systems. It facilitates two major functions for the CPU: 
+PICs enable us to configure how interrupts should be distributed to the CPU to be handled i.e. by masking interrupts, setting priority, and buffering them. The APIC is a more advanced PIC that was introduced with multi-core systems. It facilitates two major functions for the CPU: 
 
-- APICs receive interrupts from the processors interrupt pins, both internal and external sources (i.e. from IO devices), and forwards these to the processors core for handling. 
+- APICs receive interrupts from various internal (i.e. the IO pins on the CPU) and external sources (i.e. from externally connected IO devices), and forwards these to the processors core for handling. 
 - In multi-processor systems, APICs handle sending inter-core interrupts. This can be used to distribute interrupts between cores, e.g. to schedule tasks between cores. This is how you'd implement a scheduler.  
 
 APICs have memory mapped registers that allow us to configure how this works e.g. by adding function pointers in tables that can handle various interrupts, or by masking out certain kinds of interrupts altogether. 

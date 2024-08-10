@@ -114,6 +114,7 @@ pub fn init() void {
     idt.setDescriptor(18, @intFromPtr(&machineCheckISR), 0);
     idt.setDescriptor(19, @intFromPtr(&simdErrISR), 0);
 
+    // TODO this might make more sense being set from the lapic setup code
     idt.setDescriptor(0xFF, @intFromPtr(&spuriousIntISR), 0);
 
     idt.load();
