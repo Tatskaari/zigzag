@@ -29,6 +29,8 @@ pub fn build(b: *std.Build) void {
         .root_source_file = .{.cwd_relative = "src/arch/index.zig"},
     });
 
+    arch.addImport("limine", limine.module("limine"));
+
     const assets = b.addModule("assets", .{
         .root_source_file = .{.cwd_relative = "src/assets/assets.zig"},
     });
@@ -40,6 +42,8 @@ pub fn build(b: *std.Build) void {
         }
     });
 
+    arch.addImport("kernel", kernel);
+
     const drivers = b.addModule("drivers", .{
         .root_source_file = .{.cwd_relative = "src/drivers/index.zig"},
         .imports = &[_]std.Build.Module.Import{
@@ -49,6 +53,8 @@ pub fn build(b: *std.Build) void {
             .{ .name = "kernel", .module = kernel },
         },
     });
+
+    arch.addImport("drivers", drivers);
 
 
     // Build the kernel itself.

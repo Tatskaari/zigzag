@@ -1,5 +1,3 @@
-const terminal = @import("drivers").terminal;
-
 const IDTEntry = packed struct {
     isr_low: u16, // first 16 bits of the function pointer
     kernel_cs: u16, // The code segment for the kernel. This should be whatever you set it to when you set this in the GDT.
@@ -38,6 +36,7 @@ pub const InterruptStackFrame = extern struct {
     stack_segment: u32,
 };
 
+// TODO set this explicitly in the GDT ourselves
 pub inline fn getCS() u16 {
     return asm volatile ("mov %cs, %[result]"
         : [result] "=r" (-> u16),

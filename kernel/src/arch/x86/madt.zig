@@ -1,5 +1,5 @@
 const kernel = @import("kernel");
-const rsdt = @import("rsdt.zig");
+const rsdt = @import("../rsdt.zig");
 
 const MADT_SIG: [4]u8 = [4]u8{'A', 'P', 'I', 'C'};
 const IO_APIC_TYPE = 1;

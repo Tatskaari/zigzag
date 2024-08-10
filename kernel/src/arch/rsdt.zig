@@ -8,8 +8,6 @@
 const std = @import("std");
 const limine = @import("limine");
 const kernel = @import("kernel");
-const terminal = @import("terminal.zig");
-const pic = @import("pic.zig");
 
 
 pub const Error = error{

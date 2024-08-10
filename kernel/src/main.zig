@@ -1,9 +1,9 @@
 const limine = @import("limine");
 const std = @import("std");
+const arch = @import("arch");
 const drivers = @import("drivers");
 const kernel = @import("kernel");
 
-const interrupts = @import("interrupts.zig");
 
 // Set the base revision to 2, this is recommended as this is the latest
 // base revision described by the Limine boot protocol specification.
@@ -30,12 +30,13 @@ export fn _start() callconv(.C) noreturn {
         @panic("boot error: limine bootloader base revision not supported");
     }
 
-    interrupts.init();
     kernel.mem.init();
+    arch.rsdt.init();
+    arch.init();
     drivers.init();
 
     drivers.pci.lspci();
 
-    drivers.terminal.print("ioapic addr 0x{x}", .{drivers.madt.madt.get_io_apic_addr()});
+    drivers.terminal.print("ioapic addr 0x{x}", .{arch.madt.madt.get_io_apic_addr()});
     done();
 }
