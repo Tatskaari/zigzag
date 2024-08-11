@@ -1,26 +1,45 @@
 const limine = @import("limine");
 
-pub const WHITE: u32 = 0xFFFFFFFF;
-pub const BLACK: u32 = 0x00000000;
+pub const Gravbox = enum(u32) {
+    BG = 0x282828,
+    FG = 0xebdbb2,
+};
 
 pub const Font = struct {
     data: []const u8,
-    glyph_width: usize,
-    glyph_height: usize,
+    glyph_width: usize = 0,
+    glyph_height: usize = 0,
+    hdr_size: usize = 0,
+
+    pub fn init(self: *Font) void {
+        if (self.data[0] == 0x36 and self.data[1] == 0x4) {
+            self.glyph_height = self.data[3];
+            self.glyph_width = @divExact(self.glyph_height, 2);
+            self.hdr_size = 4;
+        } else {
+            @panic("Unsuported font format");
+        }
+    }
 
     pub fn getByte(self: *Font, c: u8, i: usize) u8 {
-        return self.data[@as(usize, c) * 16 + i];
+        return self.data[@as(usize, c) * self.glyph_height + i + self.hdr_size];
     }
 };
 
-pub const font: Font = .{
+pub var font: Font = .{
     .data = @import("assets").vga_font,
-    .glyph_width = 8,
-    .glyph_height = 16,
 };
 
 pub const VGA = struct {
     fb: *limine.Framebuffer,
+
+    pub fn clear(self: *VGA, colour: u32) void {
+        for(0..self.fb.width) |x| {
+            for(0..self.fb.height) |y| {
+                self.putPixel(x, y, colour);
+            }
+        }
+    }
 
     pub fn putPixel(self: *VGA, x: usize, y: usize, colour: u32) void {
         const pixelPos = y * self.fb.pitch + x * (self.fb.bpp / 8);
@@ -32,7 +51,7 @@ pub const VGA = struct {
         const y = row * font.glyph_height;
 
         for (0..16) |i| {
-            self.drawByteAt(x, y+i, font.data[@as(usize, char)*font.glyph_height + i], fg, bg);
+            self.drawByteAt(x, y+i, font.getByte(char, i), fg, bg);
         }
     }
 
@@ -45,13 +64,8 @@ pub const VGA = struct {
     }
 
     fn drawByteAt(self: *VGA, x: usize, y: usize, byte: u8, fg: u32, bg: u32) void {
-        self.drawBitAt(x + 0, y, byte & 0b10000000 != 0, fg, bg);
-        self.drawBitAt(x + 1, y, byte & 0b01000000 != 0, fg, bg);
-        self.drawBitAt(x + 2, y, byte & 0b00100000 != 0, fg, bg);
-        self.drawBitAt(x + 3, y, byte & 0b00010000 != 0, fg, bg);
-        self.drawBitAt(x + 4, y, byte & 0b00001000 != 0, fg, bg);
-        self.drawBitAt(x + 5, y, byte & 0b00000100 != 0, fg, bg);
-        self.drawBitAt(x + 6, y, byte & 0b00000010 != 0, fg, bg);
-        self.drawBitAt(x + 6, y, byte & 0b00000001 != 0, fg, bg);
+        for(0..8) |bit| {
+            self.drawBitAt(x + bit, y, byte & (@as(u8, 0b10000000) >> @truncate(bit)) != 0, fg, bg);
+        }
     }
 };

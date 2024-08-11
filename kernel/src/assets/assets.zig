@@ -1,1 +1,1 @@
- pub const vga_font = @embedFile("fonts/vga8x16.bin");
+ pub const vga_font = @embedFile("fonts/zap-light16.psf");

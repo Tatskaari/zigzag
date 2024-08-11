@@ -5,6 +5,5 @@ pub const qemu = @import("qemu.zig");
 pub const keyboard = @import("keyboard.zig");
 
 pub fn init() void {
-    terminal.init();
     keyboard.init();
 }

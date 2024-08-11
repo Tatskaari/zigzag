@@ -11,8 +11,8 @@ pub const Terminal = struct {
     row: usize = 0,
     width: usize,
     height: usize,
-    fg: u32 = vga.WHITE,
-    bg: u32 = vga.BLACK,
+    fg: u32 = @intFromEnum(vga.Gravbox.FG),
+    bg: u32 = @intFromEnum(vga.Gravbox.BG),
 
     pub const Writer = std.io.Writer(
         *Terminal,
@@ -26,6 +26,7 @@ pub const Terminal = struct {
 
     pub fn init(self: *Terminal, fb: *limine.Framebuffer) void {
         self.vga.fb = fb;
+        self.vga.clear(self.bg);
         tty.width = @divFloor(fb.width, vga.font.glyph_width);
         tty.height = @divFloor(fb.width, vga.font.glyph_height);
     }
@@ -73,7 +74,7 @@ pub fn init() void {
         if (framebuffer_response.framebuffer_count < 1) {
             @panic("failed to init terminal: no frame buffer found");
         }
-
+        vga.font.init();
         tty.init(framebuffer_response.framebuffers()[0]);
     }
 }
