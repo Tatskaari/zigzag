@@ -101,28 +101,28 @@ pub fn enable() void {
 
 // Sets up the basic CPU intrupts
 pub fn init() void {
-    idt.setDescriptor(0, @intFromPtr(&divErrISR), false);
-    idt.setDescriptor(1, @intFromPtr(&debugISR), false);
-    idt.setDescriptor(2, @intFromPtr(&nonMaskableISR), false);
-    idt.setDescriptor(3, @intFromPtr(&breakpointISR), false);
-    idt.setDescriptor(4, @intFromPtr(&overflowISR), false);
-    idt.setDescriptor(5, @intFromPtr(&boundRangeExceededISR), false);
-    idt.setDescriptor(6, @intFromPtr(&invalidOpcodeISR), false);
-    idt.setDescriptor(7, @intFromPtr(&deviceNotAvailableISR), false);
-    idt.setDescriptor(8, @intFromPtr(&doubleFaultISR), false);
-    idt.setDescriptor(10, @intFromPtr(&invalidTSSISR), false);
-    idt.setDescriptor(11, @intFromPtr(&segmentNotPresentISR), false);
-    idt.setDescriptor(12, @intFromPtr(&stackSegFaultISR), false);
-    idt.setDescriptor(13, @intFromPtr(&gpaFaultISR), false);
-    idt.setDescriptor(14, @intFromPtr(&pageFaultISR), false);
-    idt.setDescriptor(16, @intFromPtr(&fpuErrISR), false);
-    idt.setDescriptor(17, @intFromPtr(&alignCheckISR), false);
-    idt.setDescriptor(18, @intFromPtr(&machineCheckISR), false);
-    idt.setDescriptor(19, @intFromPtr(&simdErrISR), false);
+    idt.setDescriptor(0, @intFromPtr(&divErrISR), 0);
+    idt.setDescriptor(1, @intFromPtr(&debugISR), 0);
+    idt.setDescriptor(2, @intFromPtr(&nonMaskableISR), 0);
+    idt.setDescriptor(3, @intFromPtr(&breakpointISR), 0);
+    idt.setDescriptor(4, @intFromPtr(&overflowISR), 0);
+    idt.setDescriptor(5, @intFromPtr(&boundRangeExceededISR), 0);
+    idt.setDescriptor(6, @intFromPtr(&invalidOpcodeISR), 0);
+    idt.setDescriptor(7, @intFromPtr(&deviceNotAvailableISR), 0);
+    idt.setDescriptor(8, @intFromPtr(&doubleFaultISR), 0);
+    idt.setDescriptor(10, @intFromPtr(&invalidTSSISR), 0);
+    idt.setDescriptor(11, @intFromPtr(&segmentNotPresentISR), 0);
+    idt.setDescriptor(12, @intFromPtr(&stackSegFaultISR), 0);
+    idt.setDescriptor(13, @intFromPtr(&gpaFaultISR), 0);
+    idt.setDescriptor(14, @intFromPtr(&pageFaultISR), 0);
+    idt.setDescriptor(16, @intFromPtr(&fpuErrISR), 0);
+    idt.setDescriptor(17, @intFromPtr(&alignCheckISR), 0);
+    idt.setDescriptor(18, @intFromPtr(&machineCheckISR), 0);
+    idt.setDescriptor(19, @intFromPtr(&simdErrISR), 0);
 
 
     // TODO this might make more sense being set from the lapic setup code
-    idt.setDescriptor(0xFF, @intFromPtr(&spuriousIntISR), false);
+    idt.setDescriptor(0xFF, @intFromPtr(&spuriousIntISR), 0x8E);
 
     idt.load();
 }

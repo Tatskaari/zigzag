@@ -46,7 +46,7 @@ pub fn init() void {
     init_redtbl();
 
     // 2. Register the isr at the right vector
-    arch.idt.setDescriptor(IDT_VECTOR, @intFromPtr(&keyboard_isr), true);
+    arch.idt.setDescriptor(IDT_VECTOR, @intFromPtr(&keyboard_isr), 0x8E);
 
     // 3. Determine/check which scan lines we're going to use
     // TODO set up the type of scan codes we're going to use here

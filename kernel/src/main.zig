@@ -36,7 +36,6 @@ export fn _start() callconv(.C) noreturn {
     arch.init();
 
     arch.interupts.enable();
-
     drivers.init();
 
     drivers.pci.lspci();
