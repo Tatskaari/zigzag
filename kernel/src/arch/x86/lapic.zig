@@ -38,7 +38,7 @@ pub fn init() void {
     const lapic = get_lapic();
 
     // To enable the lapic, we set the sprious interrupt reg to 0xFF which
-    lapic.write(SPURIOUS_INT_REG, 0xFF);
+    lapic.write(SPURIOUS_INT_REG, 0xFF | 0x100);
 
     terminal.print("lapic version 0x{x}\n", .{lapic.read(VER_REG)});
 }

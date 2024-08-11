@@ -24,11 +24,11 @@ all-hdd: $(IMAGE_NAME).hdd
 
 .PHONY: run
 run: $(IMAGE_NAME).iso
-	qemu-system-x86_64 -M q35 -m 2G -device piix3-ide,id=ide -drive id=disk,file=$(IMAGE_NAME).iso,format=raw,if=none -device ide-hd,drive=disk,bus=ide.0
+	qemu-system-x86_64 -M q35 -m 2G -cdrom $(IMAGE_NAME).iso -boot d
 
 .PHONY: gdb
 gdb: $(IMAGE_NAME).iso
-	(pgrep -f -x "qemu-system-x86_64.*" | xargs kill -9); qemu-system-x86_64 -s -S -M q35 -m 2G -device piix3-ide,id=ide -drive id=disk,file=$(IMAGE_NAME).iso,format=raw,if=none -device ide-hd,drive=disk,bus=ide.0 &
+	(pgrep -f -x "qemu-system-x86_64.*" | xargs kill -9); qemu-system-x86_64 -s -S -M q35 -m 2G -cdrom $(IMAGE_NAME).iso -boot d &
 
 .PHONY: run-uefi
 run-uefi: ovmf $(IMAGE_NAME).iso

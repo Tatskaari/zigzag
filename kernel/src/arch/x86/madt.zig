@@ -1,4 +1,5 @@
 const kernel = @import("kernel");
+const terminal = @import("drivers").terminal;
 const rsdt = @import("../rsdt.zig");
 
 const MADT_SIG: [4]u8 = [4]u8{'A', 'P', 'I', 'C'};
@@ -17,33 +18,67 @@ pub const IoApicEntry = extern struct {
     global_system_interupt_base: u32 align(1),
 };
 
+pub const LocalApicEntry = extern struct {
+    hdr: DeviceListEntry align(1),
+    processor_id: u8 align(1),
+    apic_id: u8 align(1),
+    flags: u32 align(1),
+};
+
 pub const MADT = extern struct {
     header: rsdt.Header align(1),
     lapic_address: u32 align(1),
     flags: u32 align(1),
 
-    pub fn local_apic_address(self: *MADT) usize {
+    pub fn local_apic_address(self: *const MADT) usize {
         return kernel.mem.physical_to_virtual(@intCast(self.lapic_address));
     }
 
-    pub fn find_device_entry_by_type(self: *MADT, t: u8) *DeviceListEntry {
+    pub fn find_device_entry_by_type(self: *const MADT, t: u8) *DeviceListEntry {
+        const end_addr = @intFromPtr(&self.header) + self.header.length;
         var entry: *DeviceListEntry = @ptrFromInt(@intFromPtr(&self.flags) + @sizeOf(u32));
         // There are 9 types. We don't need to loop unbounded here.
-        for(0..9) |_| {
+        while(true) {
             if (entry.type == t) {
                 return entry;
             } else {
-                entry = @ptrFromInt(@intFromPtr(entry) + entry.len);
+                const entry_addr = @intFromPtr(entry) + entry.len;
+                if (entry_addr >= end_addr) {
+                    @panic("coun't find entry by type");
+                }
+                entry = @ptrFromInt(entry_addr);
             }
         }
-        // TODO include the type in the error message once we have an allocator
-        @panic("coun't find entry by type");
     }
 
-    pub fn get_io_apic_addr(self: *MADT) usize {
+    pub fn get_io_apic_addr(self: *const MADT) usize {
         const entry = self.find_device_entry_by_type(IO_APIC_TYPE);
         const io_apic_entry : *IoApicEntry = @alignCast(@ptrCast(entry));
         return kernel.mem.physical_to_virtual(@intCast(io_apic_entry.addr));
+    }
+
+    pub fn print_apics(self: *const MADT) void {
+        const end_addr = @intFromPtr(&self.header) + self.header.length;
+
+        var entry: *DeviceListEntry = @ptrFromInt(@intFromPtr(&self.flags) + @sizeOf(u32));
+        // There are 9 types. We don't need to loop unbounded here.
+        while(true) {
+            if(entry.type == 0) {
+                const lapic_entry : *LocalApicEntry = @alignCast(@ptrCast(entry));
+                terminal.print("found local apic in MADT: processor_id: {}, id: {}, virt addr: 0x{x}\n", .{lapic_entry.processor_id, lapic_entry.apic_id, kernel.mem.physical_to_virtual(self.lapic_address)});
+            }
+
+            if(entry.type == 1) {
+                const io_apic_entry : *IoApicEntry = @alignCast(@ptrCast(entry));
+                terminal.print("found io apic in MADT : id: {}, virt addr: 0x{x}\n", .{io_apic_entry.id, io_apic_entry.addr});
+            }
+
+            const entry_addr = @intFromPtr(entry) + entry.len;
+            if (entry_addr >= end_addr) {
+                break;
+            }
+            entry = @ptrFromInt(entry_addr);
+        }
     }
 };
 
@@ -54,4 +89,7 @@ pub fn init() void {
     const hdr = rsdt.find_hdr(MADT_SIG) catch @panic("cound't find MADT header");
     madt = @alignCast(@ptrCast(hdr));
     io_apic_addr = madt.get_io_apic_addr();
+
+    // For diagnostics
+    madt.print_apics();
 }

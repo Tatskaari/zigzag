@@ -143,8 +143,8 @@ pub fn device(bus: u8, slot: u5, function: u3) PciDevice {
 }
 
 pub fn lspci() void {
-    for (0..31) |slot| {
-        for (0..7) |function | {
+    for (0..32) |slot| {
+        for (0..8) |function | {
             const dev = device(0, @intCast(slot), @intCast(function));
             if (dev.is_empty()) {
                 continue;
