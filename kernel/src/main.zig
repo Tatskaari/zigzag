@@ -34,6 +34,9 @@ export fn _start() callconv(.C) noreturn {
     kernel.mem.init();
     arch.rsdt.init();
     arch.init();
+
+    arch.interupts.enable();
+
     drivers.init();
 
     drivers.pci.lspci();

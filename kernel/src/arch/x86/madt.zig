@@ -25,6 +25,14 @@ pub const LocalApicEntry = extern struct {
     flags: u32 align(1),
 };
 
+pub const SourceOverrideEntry = extern struct {
+    hdr: DeviceListEntry align(1),
+    bus_source: u8 align(1),
+    irq_source: u8 align(1),
+    global_system_interrupt: u32 align(1),
+    flags: u16 align(1),
+};
+
 pub const MADT = extern struct {
     header: rsdt.Header align(1),
     lapic_address: u32 align(1),
@@ -71,6 +79,11 @@ pub const MADT = extern struct {
             if(entry.type == 1) {
                 const io_apic_entry : *IoApicEntry = @alignCast(@ptrCast(entry));
                 terminal.print("found io apic in MADT : id: {}, virt addr: 0x{x}\n", .{io_apic_entry.id, io_apic_entry.addr});
+            }
+
+            if(entry.type == 2) {
+                const e : *SourceOverrideEntry = @alignCast(@ptrCast(entry));
+                terminal.print("found interrupt source override in the MADT : bus: {}, irq: {}, global: {}\n", .{e.bus_source, e.irq_source, e.global_system_interrupt});
             }
 
             const entry_addr = @intFromPtr(entry) + entry.len;

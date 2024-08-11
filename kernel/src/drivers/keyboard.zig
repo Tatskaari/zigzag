@@ -10,12 +10,15 @@ const ENABLE_PORT_1 = DISABLE_PORT_1 + 0x01;
 const DISABLE_PORT_2 = 0xA7;
 const ENABLE_PORT_2 = DISABLE_PORT_2 + 0x01;
 
+// The ps/2 keyboard is connected to port 1 of the IO apic
 const IOAPIC_ENTRY_NUM = 1;
+// We can choose whatever we want
 const IDT_VECTOR = 0x20;
 
-export fn keyboard_isr() callconv(.Interrupt) void {
+export fn keyboard_isr(_: *arch.idt.InterruptStackFrame) callconv(.Interrupt) void {
     const scancode = arch.ports.inb(DATA_REG);
     terminal.print("Scancode read: 0x{x}\n", .{scancode});
+    arch.lapic.get_lapic().end();
 }
 
 pub fn enable() void {
@@ -43,8 +46,7 @@ pub fn init() void {
     init_redtbl();
 
     // 2. Register the isr at the right vector
-    arch.idt.setDescriptor(IDT_VECTOR, @intFromPtr(&keyboard_isr), 0);
-    arch.idt.load();
+    arch.idt.setDescriptor(IDT_VECTOR, @intFromPtr(&keyboard_isr), true);
 
     // 3. Determine/check which scan lines we're going to use
     // TODO set up the type of scan codes we're going to use here

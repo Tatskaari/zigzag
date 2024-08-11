@@ -1,3 +1,4 @@
+const drivers = @import("drivers");
 const madt = @import("madt.zig");
 
 const IOREGSEL_OFFSET = 0x0;
@@ -88,15 +89,15 @@ const APIC = struct {
     }
 };
 
-
-
 pub var apic = APIC{
     .io_reg_select = undefined,
     .io_window_reg = undefined,
 };
 
-
 pub fn init() void {
     apic.io_reg_select = @ptrFromInt(madt.io_apic_addr + IOREGSEL_OFFSET);
     apic.io_window_reg = @ptrFromInt(madt.io_apic_addr + IOWIN_OFFSET);
+
+    const ver = apic.read(IOAPICVER_REG);
+    drivers.terminal.print("ioapic ver 0x{x}\n", .{ver});
 }

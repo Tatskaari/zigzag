@@ -9,8 +9,8 @@ pub const ioapic = @import("ioapic.zig");
 
 pub fn init() void {
     pic.disable();
-    madt.init();
-    lapic.init();
-    ioapic.init();
     interupts.init();
+    madt.init();
+    ioapic.init();
+    lapic.init();
 }

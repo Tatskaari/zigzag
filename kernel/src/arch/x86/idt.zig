@@ -16,7 +16,7 @@ const IDTR = packed struct(u80) {
 
 var idt: [256]IDTEntry = undefined;
 
-pub fn setDescriptor(vector: usize, isrPtr: usize, dpl: u8) void {
+pub fn setDescriptor(vector: usize, isrPtr: usize, is_interrupt: bool) void {
     var entry = &idt[vector];
 
     entry.isr_low = @truncate(isrPtr & 0xFFFF);
@@ -24,8 +24,7 @@ pub fn setDescriptor(vector: usize, isrPtr: usize, dpl: u8) void {
     entry.isr_high = @truncate(isrPtr >> 32);
     //your code selector may be different!
     entry.kernel_cs = getCS();
-    //trap gate + present + DPL
-    entry.flags = 0b1110 | ((dpl & 0b11) << 5) | (1 << 7);
+    entry.flags = if(is_interrupt) 0b1110 else 0b1111;
 }
 
 pub const InterruptStackFrame = extern struct {
