@@ -38,8 +38,7 @@ export fn _start() callconv(.C) noreturn {
     arch.interupts.enable();
     drivers.init();
 
-    drivers.pci.lspci();
+    arch.pci.lspci();
 
-    drivers.terminal.print("ioapic addr 0x{x}", .{arch.madt.madt.get_io_apic_addr()});
     done();
 }

@@ -1,6 +1,6 @@
 const std = @import("std");
-const arch = @import("arch");
-const terminal = @import("terminal.zig");
+const arch = @import("index.zig");
+const terminal = @import("drivers").terminal;
 // THese are teh ports that PCI uses to enable software to read the PCI config
 const PCI_CONFIG_ADDRESS = 0xCF8;
 const PCI_CONFIG_DATA = 0xCFC;

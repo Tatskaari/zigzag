@@ -33,7 +33,6 @@ pub fn disable() void {
 
 fn init_redtbl() void {
     var entry = arch.ioapic.apic.read_redirect_entry(IOAPIC_ENTRY_NUM);
-    terminal.print("entry mask {}\n", .{entry.mask});
     entry.mask = false;
     entry.vector = IDT_VECTOR;
     entry.destination_mode = arch.ioapic.DestinationMode.physical;

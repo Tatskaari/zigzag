@@ -99,5 +99,5 @@ pub fn init() void {
     apic.io_window_reg = @ptrFromInt(madt.io_apic_addr + IOWIN_OFFSET);
 
     const ver = apic.read(IOAPICVER_REG);
-    drivers.terminal.print("ioapic ver 0x{x}\n", .{ver});
+    drivers.terminal.print("Configured ioapic at 0x{x}, version 0x{x}\n", .{madt.io_apic_addr, ver});
 }
