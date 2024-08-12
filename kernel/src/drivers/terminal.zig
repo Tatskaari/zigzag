@@ -99,6 +99,10 @@ pub const Terminal = struct {
         if (self.line > self.height) {
             self.redraw();
         }
+        const mod_line = @mod(self.line, self.history.len);
+        for(0..self.history[mod_line].len) |j| {
+            self.history[mod_line][j] = 0;
+        }
     }
 
     pub fn write(self: *Terminal, c: u8) void {
