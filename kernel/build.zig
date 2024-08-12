@@ -17,6 +17,7 @@ pub fn target() std.Target.Query {
     t.cpu_features_sub.addFeature(@intFromEnum(Features.avx));
     t.cpu_features_sub.addFeature(@intFromEnum(Features.avx2));
     t.cpu_features_add.addFeature(@intFromEnum(Features.soft_float));
+
     return t;
 }
 
@@ -66,7 +67,9 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .code_model = .kernel,
         .pic = true,
+        .single_threaded = true,
     });
+
 
     root.root_module.addImport("limine", limine.module("limine"));
     root.root_module.addImport("drivers", drivers);

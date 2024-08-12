@@ -55,7 +55,6 @@ fn init_higher_half_direct_map() void {
 }
 
 pub fn init() void {
-    init_allocator();
     init_higher_half_direct_map();
-
+    init_allocator();
 }
