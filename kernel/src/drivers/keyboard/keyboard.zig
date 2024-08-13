@@ -25,11 +25,37 @@ const SCAN_CODE_1 = 0x43;
 const SCAN_CODE_2 = 0x41;
 const SCAN_CODE_3 = 0x3f;
 
+const Listener = struct {
+    ptr: *anyopaque,
+    onEventFn: *const fn (ptr: *anyopaque, event: keys.KeyEvent) void,
+
+    fn onKeyEvent(self: *const Listener, event: keys.KeyEvent) void {
+        self.onEventFn(self.ptr, event);
+    }
+
+    fn init(ptr: anytype) Listener {
+        const T = @TypeOf(ptr);
+        const ptr_info = @typeInfo(T);
+
+        const gen = struct {
+            pub fn onKeyEvent(pointer: *anyopaque, event: keys.KeyEvent) void {
+                const self: T = @ptrCast(@alignCast(pointer));
+                return ptr_info.Pointer.child.onKeyEvent(self, event);
+            }
+        };
+
+        return .{
+            .ptr = ptr,
+            .onEventFn = gen.onKeyEvent,
+        };
+    }
+};
 
 const Ps2Keyboard = struct {
     ps2: arch.ps2.PS2,
     // TODO we should probably make this an ArrayList once we have an allocator to have multiple listeners
-    key_event_listener: fn(keys.KeyEvent) void,
+    key_event_listeners: [10]Listener = undefined,
+    key_event_listenr_count: usize = 0,
 
     pub fn read(self: *const Ps2Keyboard) u8 {
         return self.ps2.data.read(u8);
@@ -47,9 +73,17 @@ const Ps2Keyboard = struct {
 
     pub fn key_pressed(self: *const Ps2Keyboard) void {
         const scancode = self.read();
-        if(keys.translate(scancode)) |code| {
-            self.key_event_listener(code);
+        if (keys.translate(scancode)) |event| {
+            for (0..self.key_event_listenr_count) |i| {
+                const l = self.key_event_listeners[i];
+                l.onKeyEvent(event);
+            }
         }
+    }
+
+    pub fn add_listener(self: *Ps2Keyboard, l: Listener) void {
+        self.key_event_listeners[self.key_event_listenr_count] = l;
+        self.key_event_listenr_count = self.key_event_listenr_count + 1;
     }
 };
 
@@ -57,6 +91,10 @@ const Ps2Keyboard = struct {
 const TerminalKeyboard = struct {
     caps_lock: bool = false,
     key_state: [keys.key_count]bool = std.mem.zeroes([keys.key_count]bool),
+
+    pub fn listener(self: *TerminalKeyboard) Listener {
+        return Listener.init(self);
+    }
 
     pub fn isPressed(self: *TerminalKeyboard, key: keys.Key) bool {
         return self.key_state[@intFromEnum(key)];
@@ -76,22 +114,22 @@ const TerminalKeyboard = struct {
 
     pub fn onKeyEvent(self: *TerminalKeyboard, event: keys.KeyEvent) void {
         self.key_state[@intFromEnum(event.key)] = event.pressed;
-        if(event.key == keys.Key.CapsLock and event.pressed) {
+        if (event.key == keys.Key.CapsLock and event.pressed) {
             // TODO I think this should actually come from the keyboard
             self.caps_lock = !self.caps_lock;
         }
 
-        if(event.pressed) {
+        if (event.pressed) {
             self.onPress(event);
         }
     }
 
     fn onPress(self: *TerminalKeyboard, event: keys.KeyEvent) void {
-        if(self.handleShortcut(event)) {
+        if (self.handleShortcut(event)) {
             return;
         }
 
-        if(event.key == keys.Key.Backspace and terminal.tty.col > 0) {
+        if (event.key == keys.Key.Backspace and terminal.tty.col > 0) {
             terminal.tty.set_char(terminal.tty.col, terminal.tty.line, 0); // For the cursor
             terminal.tty.col = terminal.tty.col - 1;
             terminal.tty.set_char(terminal.tty.col, terminal.tty.line, 0);
@@ -107,26 +145,20 @@ const TerminalKeyboard = struct {
     }
 
     fn handleShortcut(self: *TerminalKeyboard, event: keys.KeyEvent) bool {
-        if(!self.isCtrPressed()) {
+        if (!self.isCtrPressed()) {
             return false;
         }
-        if(event.key == keys.Key.L) {
+        if (event.key == keys.Key.L) {
             terminal.tty.clear();
         }
         return true;
     }
 };
 
-
 var isr1_keyboard = TerminalKeyboard{};
 
-fn keyEventListener(event: keys.KeyEvent) void {
-    return isr1_keyboard.onKeyEvent(event);
-}
-
-const isr1_ps2_keyboard = Ps2Keyboard{
+var isr1_ps2_keyboard = Ps2Keyboard{
     .ps2 = arch.ps2.new(DATA_PORT, STATUS_PORT, COMMAND_PORT),
-    .key_event_listener = keyEventListener,
 };
 
 // The keyboard is connected to pin 1 on the io apic i.e. isr1
@@ -148,4 +180,5 @@ pub fn init() void {
     init_redtbl();
     arch.idt.setDescriptor(IDT_VECTOR, @intFromPtr(&isr1), 0x8E);
     isr1_ps2_keyboard.enable();
+    isr1_ps2_keyboard.add_listener(isr1_keyboard.listener());
 }
