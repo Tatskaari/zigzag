@@ -2,3 +2,4 @@
 pub usingnamespace @import("x86/index.zig");
 pub const rsdt = @import("rsdt.zig");
 pub const pci = @import("pci.zig");
+pub const ps2 = @import("ps2.zig");

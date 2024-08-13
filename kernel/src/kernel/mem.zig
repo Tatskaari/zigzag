@@ -7,7 +7,7 @@ const limine = @import("limine");
 // See: https://github.com/limine-bootloader/limine/blob/v8.x/PROTOCOL.md#entry-memory-layout
 export var hhdm_request: limine.HhdmRequest = .{};
 
-// higher_half_direct_map_offset is the offset used to map from the higher half virutal memory to physical memroy
+// higher_half_direct_map_offset is the offset used to map from the higher half virutal memory to physical memory
 var hhdm_offset: u64 = undefined;
 
 pub inline fn physical_to_virtual(physical: usize) usize {

@@ -10,7 +10,7 @@ const WIDTH = 256;
 const HEIGHT = 256;
 
 pub const Terminal = struct {
-    vga: vga.VGA = vga.VGA{.fb = undefined},
+    vga: vga.VGA = vga.VGA{ .fb = undefined },
     col: u32 = 0,
     line: u32 = 0,
     width: u32,
@@ -36,8 +36,8 @@ pub const Terminal = struct {
         self.width = @intCast(@divFloor(fb.width, vga.font.glyph_width));
         self.height = @intCast(@divFloor(fb.height, vga.font.glyph_height));
 
-        for(0..self.history.len) |i| {
-            for(0..self.history[i].len) |j| {
+        for (0..self.history.len) |i| {
+            for (0..self.history[i].len) |j| {
                 self.history[i][j] = 0;
             }
         }
@@ -56,38 +56,36 @@ pub const Terminal = struct {
         return self.history[y][x];
     }
 
-
-    // Convert a line in screen space to a line in the terminal history
-    pub fn screen_to_term(self: *Terminal, line: usize) usize {
+    // Convert a line in terminal history to a line in screen space
+    pub fn term_to_screen(self: *Terminal, line: usize) usize {
         if (self.line < self.height) {
             return line;
         }
 
-        return self.line - self.height + line;
-    }
-
-    // Convert a line in terminal history to a line in screen space
-    pub fn term_to_screen(self: *Terminal, line: usize) usize {
-        if (self.line <= self.height) {
-            return line;
-        }
-
-        return self.height - (self.line - line);
+        return self.height - (self.line - line) - 1;
     }
 
     pub fn draw_char(self: *Terminal, col: u32, line: u32) void {
         const char = self.get_char(col, line);
         const row = self.term_to_screen(line);
-        if(char == 0) {
+        if (char == 0) {
             self.vga.drawCharAt(col, row, ' ', self.fg, self.bg);
         } else {
             self.vga.drawCharAt(col, row, char, self.fg, self.bg);
         }
     }
 
+    pub fn draw_cursor(self: *Terminal) void {
+        const row = self.term_to_screen(self.line);
+        self.vga.drawCharAt(self.col, row, '_', self.fg, self.bg);
+    }
+
     pub fn redraw(self: *Terminal) void {
-        for(0..self.height+1) |y| {
-            for(0..self.width) |x| {
+        for (0..self.height) |y| {
+            if(y > self.line) {
+                break;
+            }
+            for (0..self.width) |x| {
                 self.draw_char(@intCast(x), @intCast(self.line - y));
             }
         }
@@ -96,37 +94,48 @@ pub const Terminal = struct {
     fn new_line(self: *Terminal) void {
         self.line = self.line + 1;
         self.col = 0;
-        if (self.line > self.height) {
-            self.redraw();
-        }
+        self.redraw();
+
         const mod_line = @mod(self.line, self.history.len);
-        for(0..self.history[mod_line].len) |j| {
+        for (0..self.history[mod_line].len) |j| {
             self.history[mod_line][j] = 0;
         }
     }
 
     pub fn write(self: *Terminal, c: u8) void {
-        if(c == '\n') {
+        if (c == '\n') {
             self.new_line();
+            self.draw_cursor();
             return;
         }
-        if(c == '\r') {
+        if (c == '\r') {
             return;
         }
 
         self.set_char(self.col, self.line, c);
-
         self.col = self.col + 1;
         if (self.col > self.width) {
             self.new_line();
         }
+        self.draw_cursor();
     }
 
     pub fn writeAll(self: *Terminal, bytes: []const u8) error{}!usize {
-        for(bytes) |c| {
+        for (bytes) |c| {
             self.write(c);
         }
         return bytes.len;
+    }
+
+    pub fn clear(self: *Terminal) void {
+        for(0..self.history.len) |i| {
+            for(0..self.width) |j| {
+                self.history[i][j] = 0;
+            }
+        }
+        self.redraw();
+        self.line = 0;
+        self.col = 0;
     }
 };
 
@@ -136,7 +145,6 @@ pub var tty = Terminal{
     .height = undefined,
     .history = undefined,
 };
-
 
 pub fn init() void {
     if (framebuffer_request.response) |framebuffer_response| {

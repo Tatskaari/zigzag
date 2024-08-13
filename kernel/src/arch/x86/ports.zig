@@ -30,6 +30,32 @@ pub inline fn insl(port: u16, addr: anytype, cnt: usize) void {
     );
 }
 
+pub const Port = struct {
+    address: u16,
+
+    pub fn write(self: *const Port, comptime Size: type, value: Size) void {
+        switch (Size) {
+            u8 => outb(self.address, value),
+            u16 => outw(self.address, value),
+            u32 => outl(self.address, value),
+            else => @compileError("ports can only accept u8, u16, or u32"),
+        }
+    }
+
+    pub fn read(self: *const Port, comptime Size: type) Size {
+        switch (Size) {
+            u8 => return inb(self.address),
+            u16 => return inw(self.address),
+            u32 => return inl(self.address),
+            else => @compileError("ports can only accept u8, u16, or u32"),
+        }
+    }
+};
+
+pub fn new(address: u16) Port {
+    return Port{.address = address};
+}
+
 pub inline fn outb(port: u16, value: u8) void {
     asm volatile ("outb %[value], %[port]"
         :
