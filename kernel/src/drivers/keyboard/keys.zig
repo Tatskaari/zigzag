@@ -1,3 +1,4 @@
+// TODO arrow keys
 pub const Key = enum(u8) {
     Esc,
     One,
@@ -142,6 +143,7 @@ const KeyChars = [_]u8{
     0,
     0,
     0,
+    0, // Unknown
 };
 
 // KeyChars maps the value of a key to a character
@@ -217,7 +219,7 @@ const KeyShiftChars = [_]u8{
     0,
 };
 
-const ScancodeSet1 = [_]Key{
+const scancode_set_1 = [_]Key{
     Key.Unknown, // This is the zero value and isn't in the scancodes
     Key.Esc,
     Key.One,
@@ -339,9 +341,12 @@ pub fn translate(scan_code: u8) ?KeyEvent {
         sc = scan_code - released_offset;
     }
 
+
+    // TODO the other scancode translations
+    const key = if(sc < scancode_set_1.len) scancode_set_1[sc] else Key.Unknown;
     extended_mode = false;
     return KeyEvent{
-        .key = ScancodeSet1[sc],
+        .key = key,
         .pressed = !released,
     };
 }

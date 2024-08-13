@@ -75,6 +75,8 @@ pub const Terminal = struct {
         }
     }
 
+    // TODO is this really a concept in the driver? We probably need to expose a few primitives here that can be
+    //  implemented by the TTY service
     pub fn draw_cursor(self: *Terminal) void {
         const row = self.term_to_screen(self.line);
         self.vga.drawCharAt(self.col, row, '_', self.fg, self.bg);
@@ -136,6 +138,7 @@ pub const Terminal = struct {
         self.redraw();
         self.line = 0;
         self.col = 0;
+        self.draw_cursor();
     }
 };
 
