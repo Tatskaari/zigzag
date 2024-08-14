@@ -69,6 +69,7 @@ pub const Key = enum(u8) {
     F10,
     F11,
     F12,
+    Hash,
     Unknown,
 };
 
@@ -143,6 +144,7 @@ const KeyChars = [_]u8{
     0,
     0,
     0,
+    '#',
     0, // Unknown
 };
 
@@ -188,7 +190,7 @@ const KeyShiftChars = [_]u8{
     'L',
     ':',
     '@',
-    '~',
+    '¬',
     0, // LeftShift
     '|',
     'Z',
@@ -217,6 +219,8 @@ const KeyShiftChars = [_]u8{
     0,
     0,
     0,
+    '~',
+    0, // Unknown
 };
 
 const scancode_set_1 = [_]Key{
@@ -263,7 +267,7 @@ const scancode_set_1 = [_]Key{
     Key.SingleQuote,
     Key.BackTick,
     Key.LeftShift,
-    Key.Backslash,
+    Key.Hash,
     Key.Z,
     Key.X,
     Key.C,
@@ -306,7 +310,7 @@ const scancode_set_1 = [_]Key{
     Key.Unknown,
     Key.Unknown,
     Key.Unknown,
-    Key.Unknown,
+    Key.Backslash,
     Key.F11,
     Key.F12,
     Key.Unknown, // More numpad stuff
@@ -354,13 +358,7 @@ pub fn translate(scan_code: u8) ?KeyEvent {
 pub fn keyToASCII(shift_held: bool, key: Key) u8 {
     const idx = @intFromEnum(key);
     if(shift_held) {
-        if(idx > KeyShiftChars.len) {
-            return 0;
-        }
         return KeyShiftChars[idx];
-    }
-    if(idx > KeyChars.len) {
-        return 0;
     }
     return KeyChars[idx];
 }
