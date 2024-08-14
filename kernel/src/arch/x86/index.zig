@@ -1,6 +1,6 @@
 pub const ports = @import("ports.zig");
 pub const idt = @import("idt.zig");
-pub const msr = @import("msr.zig");
+pub const cpu = @import("cpu/index.zig");
 pub const interupts = @import("interrupts.zig");
 pub const madt = @import("madt.zig");
 pub const pic = @import("pic.zig");
