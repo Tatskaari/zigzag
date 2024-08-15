@@ -74,4 +74,3 @@ SECTIONS
         *(.interp)
     }
 }
-kernel_end = .;
