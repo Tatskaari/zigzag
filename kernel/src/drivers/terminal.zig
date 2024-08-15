@@ -6,9 +6,6 @@ const vga = @import("vga.zig");
 
 pub export var framebuffer_request: limine.FramebufferRequest = .{};
 
-const WIDTH = 256;
-const HEIGHT = 256;
-
 pub const Terminal = struct {
     vga: vga.VGA = vga.VGA{ .fb = undefined },
     col: u32 = 0,
@@ -18,7 +15,7 @@ pub const Terminal = struct {
     fg: u32 = @intFromEnum(vga.Gravbox.FG),
     bg: u32 = @intFromEnum(vga.Gravbox.BG),
 
-    history: [HEIGHT][WIDTH]u8,
+    history: [][]u8,
 
     pub const Writer = std.io.Writer(
         *Terminal,
@@ -30,13 +27,17 @@ pub const Terminal = struct {
         return .{ .context = self };
     }
 
-    pub fn init(self: *Terminal, _: std.mem.Allocator, fb: *limine.Framebuffer) void {
+    pub fn init(self: *Terminal, alloc: std.mem.Allocator, fb: *limine.Framebuffer, max_history: usize) void {
         self.vga.fb = fb;
         self.vga.clear(self.bg);
         self.width = @intCast(@divFloor(fb.width, vga.font.glyph_width));
         self.height = @intCast(@divFloor(fb.height, vga.font.glyph_height));
 
+        self.history = alloc.alloc([]u8, max_history) catch @panic("oom creating terminal");
+
+        // Zero these out incase the memory has some nonsense in it
         for (0..self.history.len) |i| {
+            self.history[i] = alloc.alloc(u8, self.width) catch @panic("oom creating terminal");
             for (0..self.history[i].len) |j| {
                 self.history[i][j] = 0;
             }
@@ -98,8 +99,8 @@ pub const Terminal = struct {
         self.col = 0;
         self.redraw();
 
-        const mod_line = @mod(self.line, self.history.len);
-        for (0..self.history[mod_line].len) |j| {
+        const mod_line = @mod(self.line+1, self.history.len);
+        for (0..self.width) |j| {
             self.history[mod_line][j] = 0;
         }
     }
@@ -116,7 +117,7 @@ pub const Terminal = struct {
 
         self.set_char(self.col, self.line, c);
         self.col = self.col + 1;
-        if (self.col > self.width) {
+        if (self.col >= self.width) {
             self.new_line();
         }
         self.draw_cursor();
@@ -149,13 +150,13 @@ pub var tty = Terminal{
     .history = undefined,
 };
 
-pub fn init() void {
+pub fn init(alloc: std.mem.Allocator) void {
     if (framebuffer_request.response) |framebuffer_response| {
         if (framebuffer_response.framebuffer_count < 1) {
             @panic("failed to init terminal: no frame buffer found");
         }
         vga.font.init();
-        tty.init(kernel.mem.allocator, framebuffer_response.framebuffers()[0]);
+        tty.init(alloc, framebuffer_response.framebuffers()[0], 100);
     }
 }
 

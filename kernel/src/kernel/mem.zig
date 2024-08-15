@@ -7,6 +7,9 @@ const limine = @import("limine");
 // See: https://github.com/limine-bootloader/limine/blob/v8.x/PROTOCOL.md#entry-memory-layout
 export var hhdm_request: limine.HhdmRequest = .{};
 
+// We need this to find a region on memory that we can alloc in
+pub export var mem_map_request = limine.MemoryMapRequest{};
+
 // higher_half_direct_map_offset is the offset used to map from the higher half virutal memory to physical memory
 var hhdm_offset: u64 = undefined;
 
@@ -19,13 +22,15 @@ pub inline fn virtual_to_physical(virtual: usize) usize {
 }
 
 
-extern const kernel_end: u8;
-var kernel_brk : usize = undefined;
+var brk: usize = undefined;
+var max_brk: usize = undefined;
 
 fn sbrk (increment: usize) usize  {
-    const last_brk = kernel_brk;
-    kernel_brk = kernel_brk + increment;
-    // This isn't really a pointer to a u8. It's a watermark in memory so we need to tell zig to trust us here.
+    const last_brk = brk;
+    brk = brk + increment;
+    if (brk > max_brk) {
+        return 0;
+    }
     return last_brk;
 }
 
@@ -38,7 +43,31 @@ pub var allocator = std.mem.Allocator{
 };
 
 fn init_allocator() void {
-    kernel_brk = @intFromPtr(&kernel_end);
+    if(mem_map_request.response == null) {
+        @panic("limine error: failed to get mem_map_request.response");
+    }
+    const resp = mem_map_request.response.?;
+
+    // Find the largest useable entry
+    var best_entry : ?*limine.MemoryMapEntry = null;
+    for(resp.entries()) |entry| {
+        if(entry.kind != limine.MemoryMapEntryType.usable) {
+            continue;
+        }
+        if(best_entry == null) {
+            best_entry = entry;
+            continue;
+        }
+        if(entry.length > best_entry.?.length) {
+            best_entry = entry;
+        }
+    }
+
+    if(best_entry == null) {
+        @panic("can't find any useable memory for sbrk");
+    }
+    brk = physical_to_virtual(best_entry.?.base);
+    max_brk = brk + best_entry.?.length;
 }
 
 // initialises the offset used to map from the higher half virtual memory to physical and back

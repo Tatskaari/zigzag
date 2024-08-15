@@ -16,7 +16,7 @@ The roadmap to achieve this is:
 - [x] VGA graphics mode
 - [x] VGA terminal
 - [x] Initialise the interrupt descriptor table
-- [x] MoreCore allocator (broken?)
+- [x] MoreCore allocator
 - [ ] Configure the GDT 
 - [x] Read the root system descriptor table
 - [x] Read the MADT

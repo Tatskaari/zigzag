@@ -25,14 +25,13 @@ pub fn panic(message: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noretu
 // The following will be our kernel's entry point.
 export fn _start() callconv(.C) noreturn {
     kernel.mem.init();
-
-    drivers.terminal.init();
+    drivers.terminal.init(kernel.mem.allocator);
 
     // Ensure the bootloader actually understands our base revision (see spec).
     if (!base_revision.is_supported()) {
         @panic("boot error: limine bootloader base revision not supported");
     }
-
+    
     arch.rsdt.init();
     arch.init();
 
