@@ -72,9 +72,17 @@ pub const VirtualMemoryAddress = packed struct (u64) {
     page_map_level_4: u9, // i.e. the PML4 entry
     reserved: u16 = 0xFFFF, // We have some bits to spare that should always be 1.
 
-    pub fn big_page_offset(self: *const VirtualMemoryAddress) u21 {
-        return (@as(u21, self.page_table) << 12) + self.offset;
+    pub fn to_big(self: *const VirtualMemoryAddress) *const BigPageVirtualMemoryAddress {
+        return @ptrCast(self);
     }
+};
+
+pub const BigPageVirtualMemoryAddress = packed struct(u64) {
+    offset: u21,
+    page_dir: u9, // i.e. the PD entry
+    page_dir_pointer: u9, // i.e. the PDPR entry
+    page_map_level_4: u9, // i.e. the PML4 entry
+    reserved: u16 = 0xFFFF, // We have some bits to spare that should always be 1.
 };
 
 fn diag(pt: *PageTable, level: usize) void {
@@ -117,9 +125,9 @@ pub fn physical_from_virtual(pml4: *PageTable, addr: usize) usize {
         return 0;
     }
 
-    // The page directory can point to a 2mb page. If so we return here otherwise we continue on to level 1
+    // The page directory can point to a 2mb page, in which case we only have 3 levels.
     if (pd_entry.big_page_or_pat) {
-        return (pd_entry.base_address << big_base_address_shift) + virtual_address.big_page_offset();
+        return (pd_entry.get_base_address(true)) + virtual_address.to_big().offset;
     }
 
     // Level 1: Page table
