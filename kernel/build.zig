@@ -40,6 +40,7 @@ pub fn build(b: *std.Build) void {
         .root_source_file = .{.cwd_relative = "src/kernel/index.zig"},
         .imports = &[_]std.Build.Module.Import{
             .{ .name = "limine", .module = limine.module("limine") },
+            .{ .name = "arch", .module = arch },
         }
     });
 

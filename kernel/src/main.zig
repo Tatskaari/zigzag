@@ -5,6 +5,8 @@ const drivers = @import("drivers");
 const kernel = @import("kernel");
 
 
+pub const os = @import("os.zig");
+
 // Set the base revision to 2, this is recommended as this is the latest
 // base revision described by the Limine boot protocol specification.
 // See specification for further info.
@@ -16,7 +18,6 @@ inline fn done() noreturn {
     }
 }
 
-// TODO this should panic over serial until we have set up the terminal
 pub fn panic(message: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
     if(!drivers.terminal.initialised) {
         drivers.serial.COM1.writer().print("fatal error: {s}\n", .{message}) catch unreachable;
@@ -30,7 +31,7 @@ pub fn panic(message: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noretu
 export fn _start() callconv(.C) noreturn {
     drivers.serial.init();
     kernel.mem.init();
-    drivers.terminal.init(kernel.mem.allocator);
+    drivers.terminal.init(std.heap.page_allocator);
 
     // Ensure the bootloader actually understands our base revision (see spec).
     if (!base_revision.is_supported()) {
@@ -44,7 +45,6 @@ export fn _start() callconv(.C) noreturn {
     drivers.init();
 
     arch.pci.lspci();
-    arch.paging.init();
 
     const physical_add = arch.cpu.cr3.read();
     const virt_add = kernel.mem.virtual_from_physical(physical_add);
@@ -62,10 +62,10 @@ export fn _start() callconv(.C) noreturn {
         .page_dir_pointer = 0x10,
         .page_dir = 0x10,
         .page_table = 0x10,
-        .reserved = 0,
+        .sign = 0,
     };
     // Create a page
-    const page = arch.paging.PageAllocator.alloc() catch unreachable;
+    const page = kernel.mem.PageMap.alloc() catch unreachable;
     const page_physical_address = page << 12; // The page is aligned to 4k, so we shift it left to get it's actual address
     // Create a new mapping from a virtual address to this page
     arch.paging.get_current_page_table().map(
