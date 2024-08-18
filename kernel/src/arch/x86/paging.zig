@@ -8,7 +8,9 @@ const cpu = @import("cpu/index.zig");
 const base_address_shift = 12;
 
 // Each table is 4k in size, and is page aligned i.e. 4k aligned. They consists of 512 64 bit entries.
-const PageTable = [512]PageTableEntry;
+const PageTable = struct {
+    entries: [512]PageTableEntry,
+};
 
 // Each level in the page table has essentially the same structure. They're a base address wrapped with some flags. You
 // would normally mask our the base address in C/C++, but zig lets us use a packaged struct like this.
@@ -46,14 +48,10 @@ const PageTableEntry = packed struct(u64) {
     // Whether memory in this page should not be executed i.e. is data not code
     no_exe: bool = false,
 
-    pub fn get_entries(self: *const PageTableEntry) *PageTable {
+    pub fn get_table(self: *const PageTableEntry) *PageTable {
         // The base address is page aligned, so we have to multiply it by 4kb (our page size)
         // Bitshifting it here effectively does that (2^12 == 4k)
         return @ptrFromInt(kernel.mem.virtual_from_physical(self.get_base_address()));
-    }
-
-    pub fn get_entry(self: *const PageTableEntry, index: u9) PageTableEntry {
-        return self.get_entries()[index];
     }
 
     pub fn get_base_address(self: *const PageTableEntry) usize {
@@ -85,13 +83,13 @@ pub fn physical_from_virtual(pml4: *PageTable, addr: usize) ?usize {
     const virtual_address : VirtualMemoryAddress = @bitCast(addr);
 
     // Level 4: Page map level 4
-    const pml4_entry = pml4[virtual_address.page_map_level_4];
+    const pml4_entry = pml4.entries[virtual_address.page_map_level_4];
     if(!pml4_entry.present) {
         return null;
     }
 
     // Level 3: Page directory pointer (reference?)
-    const pdpr_entry = pml4_entry.get_entry(virtual_address.page_dir_pointer);
+    const pdpr_entry = pml4_entry.get_table().entries[virtual_address.page_dir_pointer];
     if(!pdpr_entry.present) {
         return null;
     }
@@ -99,7 +97,7 @@ pub fn physical_from_virtual(pml4: *PageTable, addr: usize) ?usize {
     // TODO I think the pdpr can have the big page field set and that means it's a 1gb page
 
     // Level 2: Page directory
-    const pd_entry = pdpr_entry.get_entry(virtual_address.page_dir);
+    const pd_entry = pdpr_entry.get_table().entries[virtual_address.page_dir];
     if(!pd_entry.present) {
         return null;
     }
@@ -111,7 +109,7 @@ pub fn physical_from_virtual(pml4: *PageTable, addr: usize) ?usize {
     }
 
     // Level 1: Page table
-    const pt_entry = pd_entry.get_entry(virtual_address.page_table);
+    const pt_entry = pd_entry.get_table().entries[virtual_address.page_table];
     if(!pd_entry.present) {
         return null;
     }
