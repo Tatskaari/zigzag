@@ -9,8 +9,6 @@ const page_table_size = 512;
 // The base address is in terms of pages from 0, not the actually memory address. To convert this, we need to multiply
 // it by the page size, which is 4k i.e. 2^12. We can do this efficiently with a shift left of 12.
 const base_address_shift = 12;
-// For 2mb pages, the shift is 2^21 instead
-const big_base_address_shift = 21;
 
 const PageTable = [page_table_size]PageTableEntry;
 
@@ -49,13 +47,10 @@ const PageTableEntry = packed struct(u64) {
     pub fn get_entries(self: *const PageTableEntry) *PageTable {
         // The base address is page aligned, so we have to multiply it by 4kb (our page size)
         // Bitshifting it here effectively does that (2^12 == 4k)
-        return @ptrFromInt(kernel.mem.virtual_from_physical(self.get_base_address(false)));
+        return @ptrFromInt(kernel.mem.virtual_from_physical(self.get_base_address()));
     }
 
-    pub fn get_base_address(self: *const PageTableEntry, is_pd: bool) usize {
-        if(is_pd and self.big_page_or_pat) {
-            return self.base_address << big_base_address_shift;
-        }
+    pub fn get_base_address(self: *const PageTableEntry) usize {
         return self.base_address << base_address_shift;
     }
 };
@@ -72,36 +67,16 @@ pub const VirtualMemoryAddress = packed struct (u64) {
     page_map_level_4: u9, // i.e. the PML4 entry
     reserved: u16 = 0xFFFF, // We have some bits to spare that should always be 1.
 
-    pub fn to_big(self: *const VirtualMemoryAddress) *const BigPageVirtualMemoryAddress {
-        return @ptrCast(self);
+    // For big (2mb) page tables we use both the page table and the offset fields as the offset
+    pub fn get_big_page_offset(self: *const VirtualMemoryAddress) usize {
+        return (@as(usize, self.page_table) << 12) + self.offset;
     }
 };
-
-pub const BigPageVirtualMemoryAddress = packed struct(u64) {
-    offset: u21,
-    page_dir: u9, // i.e. the PD entry
-    page_dir_pointer: u9, // i.e. the PDPR entry
-    page_map_level_4: u9, // i.e. the PML4 entry
-    reserved: u16 = 0xFFFF, // We have some bits to spare that should always be 1.
-};
-
-fn diag(pt: *PageTable, level: usize) void {
-    var count : usize = 0;
-    for(0..pt.len) |i| {
-        const e = pt[i];
-        if(e.present) {
-            count += 1;
-            drivers.terminal.print("level({}) {x}-{x}: 0x{x}\n", .{level, i, count, e.get_base_address(false)});
-        }
-    }
-}
 
 // physical_from_virtual walks the page table structure to convert a virtual address to a physical one
 pub fn physical_from_virtual(pml4: *PageTable, addr: usize) usize {
     // The address is broken up into indexes that we can use to look up the page table entries
     const virtual_address : VirtualMemoryAddress = @bitCast(addr);
-
-    diag(pml4, 4);
 
     // Level 4: Page map level 4
     const pml4_entry = pml4[virtual_address.page_map_level_4];
@@ -111,7 +86,6 @@ pub fn physical_from_virtual(pml4: *PageTable, addr: usize) usize {
 
     // Level 3: Page directory pointer (reference?)
     const pdpr_entries = pml4_entry.get_entries();
-    diag(pdpr_entries, 3);
     const pdpr_entry = pdpr_entries[virtual_address.page_dir_pointer];
     if(!pdpr_entry.present) {
         return 0;
@@ -119,15 +93,15 @@ pub fn physical_from_virtual(pml4: *PageTable, addr: usize) usize {
 
     // Level 2: Page directory
     const pd_entries = pdpr_entry.get_entries();
-    diag(pd_entries, 2);
     const pd_entry = pd_entries[virtual_address.page_dir];
     if(!pd_entry.present) {
         return 0;
     }
 
-    // The page directory can point to a 2mb page, in which case we only have 3 levels.
+    // The page directory can point to a 2mb page, in which case we only have 3 levels. We treat the page table part of
+    // the virtual address as part of the offset.
     if (pd_entry.big_page_or_pat) {
-        return (pd_entry.get_base_address(true)) + virtual_address.to_big().offset;
+        return pd_entry.get_base_address() + virtual_address.get_big_page_offset();
     }
 
     // Level 1: Page table
@@ -139,14 +113,13 @@ pub fn physical_from_virtual(pml4: *PageTable, addr: usize) usize {
     }
 
     // Level 0: the offset within the page table
-    return pt_entry.get_base_address(false) + virtual_address.offset;
+    return pt_entry.get_base_address() + virtual_address.offset;
 }
 
-pub fn getCurrentPageTable() *PageTable {
+pub fn get_current_page_table() *PageTable {
     // csr3 contains the base address of the current page table, but the first 12 bits contains flags that we likely
     // don't care about. They should be set to 0 for us by limine, but we should mask them out just incase.
     // TODO make sure csr3 is set up correctly and all these bits are set to 0
     const physical_addr = cpu.cr3.read() & 0x000FFFFFFFFFFFFF;
-    drivers.terminal.print("cr3 val: 0x{x}\n", .{physical_addr});
     return @ptrFromInt(kernel.mem.virtual_from_physical(physical_addr));
 }
