@@ -42,9 +42,6 @@ pub fn get_lapic() APIC {
 pub fn init() void {
     bootstrap_apic.base = kernel.mem.virtual_from_physical(msr.read(APIC_BASE_MSR_REG) & 0xFFFFF000);
 
-    // I don't think this is strictly necessary. The spurious vector approach should work.
-    // msr.write(APIC_BASE_MSR_REG, bootstrap_apic.base | (@as(u64, 1) << 11));
-
     // To enable the lapic, we set the sprious interrupt reg to 0xFF, and set the enable (8th bit) to 1
     bootstrap_apic.write(SPURIOUS_INT_REG, bootstrap_apic.read(SPURIOUS_INT_REG) | 0x100);
     bootstrap_apic.write(0x380, 0);

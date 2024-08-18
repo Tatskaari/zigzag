@@ -39,16 +39,23 @@ export fn _start() callconv(.C) noreturn {
     drivers.init();
 
     arch.pci.lspci();
-    // arch.paging.init();
+    arch.paging.init();
 
     const physical_add = arch.cpu.cr3.read();
     const virt_add = kernel.mem.virtual_from_physical(physical_add);
 
     // These should be the same
-    const physical_address_from_pt = arch.paging.physical_from_virtual(arch.paging.get_current_page_table(), virt_add).?;
+    const physical_address_from_pt = arch.paging.get_current_page_table().physical_from_virtual(virt_add).?;
     const physical_address_from_hhdm = kernel.mem.physical_from_virtual(virt_add);
 
-    drivers.terminal.print("original {x} from hhdm {x} from page tables {x}", .{physical_add, physical_address_from_hhdm, physical_address_from_pt});
+    drivers.terminal.print("original {x} from hhdm {x} from page tables {x}\n", .{physical_add, physical_address_from_hhdm, physical_address_from_pt});
+
+    const page = arch.paging.PageAllocator.alloc() catch unreachable;
+    const page2 = arch.paging.PageAllocator.alloc() catch unreachable;
+
+    drivers.terminal.print("Got page at add: 0x{x} 0x{x}\n", .{page*arch.paging.page_alignment, page2*arch.paging.page_alignment});
+    const a : *u64 = @ptrFromInt(kernel.mem.virtual_from_physical(page*1024*4));
+    a.* = 10;
 
     done();
 }
