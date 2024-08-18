@@ -124,7 +124,9 @@ const PageTableEntry = packed struct(u64) {
 
 /// PageAllocator is an allocator that will allocate and free free pages, using a bitmap to keep track of which pages
 /// are currently allocated.
-/// Note: this is not an implementation of std.mem.Allocator. This would be used to implement one of those.
+///
+/// Note: this is not an implementation of std.mem.Allocator. This would be used to implement mmap which in turn would
+/// be used by std.heap.PageAllocator.
 pub const PageAllocator = struct {
     // Allows for up to 2 TB of memory. This is simple and avoids the need to allocate memory before we have a memory
     // allocator.

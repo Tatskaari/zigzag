@@ -52,8 +52,10 @@ export fn _start() callconv(.C) noreturn {
 
     const page = arch.paging.PageAllocator.alloc() catch unreachable;
     const page2 = arch.paging.PageAllocator.alloc() catch unreachable;
+    arch.paging.PageAllocator.free(page2);
+    const page3 = arch.paging.PageAllocator.alloc() catch unreachable;
 
-    drivers.terminal.print("Got page at add: 0x{x} 0x{x}\n", .{page*arch.paging.page_alignment, page2*arch.paging.page_alignment});
+    drivers.terminal.print("Got page at add: 0x{x} 0x{x} 0x{x}\n", .{page*arch.paging.page_alignment, page2*arch.paging.page_alignment, page3*arch.paging.page_alignment});
     const a : *u64 = @ptrFromInt(kernel.mem.virtual_from_physical(page*1024*4));
     a.* = 10;
 
