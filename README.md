@@ -23,7 +23,8 @@ The roadmap to achieve this is:
 - [x] APIC setup
 - [x] PS/2 Keyboard input
 - [ ] Timers
-- [ ] Page allocator
+- [x] Paging: allocating pages and mapping them to virtual addresses
+- [ ] Paging: mmap and a std.heap.PageAllocator
 - [ ] Basic userspace + entrypoint
 - [ ] Syscall ABI for memory mapping
 - [ ] Keyboard service 
