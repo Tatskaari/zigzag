@@ -13,14 +13,13 @@ pub export var mem_map_request = limine.MemoryMapRequest{};
 // higher_half_direct_map_offset is the offset used to map from the higher half virutal memory to physical memory
 var hhdm_offset: u64 = undefined;
 
-pub inline fn physical_to_virtual(physical: usize) usize {
+pub inline fn virtual_from_physical(physical: usize) usize {
     return physical + hhdm_offset;
 }
 
-pub inline fn virtual_to_physical(virtual: usize) usize {
+pub inline fn physical_from_virtual(virtual: usize) usize {
     return virtual - hhdm_offset;
 }
-
 
 var brk: usize = undefined;
 var max_brk: usize = undefined;
@@ -66,7 +65,7 @@ fn init_allocator() void {
     if(best_entry == null) {
         @panic("can't find any useable memory for sbrk");
     }
-    brk = physical_to_virtual(best_entry.?.base);
+    brk = virtual_from_physical(best_entry.?.base);
     max_brk = brk + best_entry.?.length;
 }
 

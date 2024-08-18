@@ -15,7 +15,8 @@ Each page can have it's own protection, which replaces the access controls that 
 The steps to setting up paging are:
 
 1) If you're not already, enable paging by setting various `cr` registers
-2) Create your page tables in memory 
+	1) This process is different in protected vs. long mode
+2) Create your page tables in memory, 
 3) Set `cr3` to this memory address
 
 The CPU will begin executing code using this page table data to virtualize memory. A page allocator can be used to add new pages to this structure as needed. To do this typically you use a bitmap to keep track of what memory is available: 
@@ -26,6 +27,8 @@ The CPU will begin executing code using this page table data to virtualize memor
 4) When a page is returned, set that chunk back to 0
 
 The page allocator can use this information to find a free section of memory, and add it to the page table. 
+
+When you eventually get to usermode processes, you should create isolated page table structures for each process. 
 
 # Page tables: address translation
 
@@ -51,11 +54,23 @@ In long mode, the structure of the page directories/tables is:
 
 The address of the root page table should be written to csr3:
 
-```
+```zig
 asm volatile ("mov %[value], %cr3"
 	:
 	: [value] "{rax}" (value),
 	: "memory"
 );
 ```
+
+The 64 bit virtual memory address has the following structure (for 4k tables): 
+```zig
+const VirtualMemoryAddress = packed struct (u64) {
+	offset: u12, // The offset within the page 
+	page_table: u9, // i.e. the PT entry
+	page_dir: u9, // i.e. the PD entry
+	page_dir_pointer: u9, // i.e. the PDPR entry
+	page_map_level_4: u9, // i.e. the PML4 entry
+};
+```
+
 

@@ -1,6 +1,6 @@
 const kernel = @import("kernel");
 const terminal = @import("drivers").terminal;
-const msr = @import("cpu/msr.zig");
+const msr = @import("cpu/index.zig").msr;
 
 const APIC_BASE_MSR_REG = 0x1B;
 const SPURIOUS_INT_REG = 0xF0;
@@ -36,11 +36,11 @@ pub var bootstrap_apic = APIC{.base = undefined};
 
 pub fn get_lapic() APIC {
     // TODO cache these by cpu id
-    return APIC{.base = kernel.mem.physical_to_virtual(msr.read(APIC_BASE_MSR_REG) & 0xFFFFF000)};
+    return APIC{.base = kernel.mem.virtual_from_physical(msr.read(APIC_BASE_MSR_REG) & 0xFFFFF000)};
 }
 
 pub fn init() void {
-    bootstrap_apic.base = kernel.mem.physical_to_virtual(msr.read(APIC_BASE_MSR_REG) & 0xFFFFF000);
+    bootstrap_apic.base = kernel.mem.virtual_from_physical(msr.read(APIC_BASE_MSR_REG) & 0xFFFFF000);
 
     // I don't think this is strictly necessary. The spurious vector approach should work.
     // msr.write(APIC_BASE_MSR_REG, bootstrap_apic.base | (@as(u64, 1) << 11));

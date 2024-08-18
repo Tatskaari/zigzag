@@ -6,6 +6,7 @@ pub const madt = @import("madt.zig");
 pub const pic = @import("pic.zig");
 pub const lapic = @import("lapic.zig");
 pub const ioapic = @import("ioapic.zig");
+pub const paging = @import("paging.zig");
 
 pub fn init() void {
     pic.disable();

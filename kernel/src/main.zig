@@ -40,5 +40,24 @@ export fn _start() callconv(.C) noreturn {
 
     arch.pci.lspci();
 
+    const a : u64 = 10;
+
+    const pt = arch.paging.getCurrentPageTable();
+    const vitrt_addr : arch.paging.VirtualMemoryAddress = @bitCast(@intFromPtr(&a));
+
+    drivers.terminal.print("virtual address: 0x{x} 0x{x} 0x{x} 0x{x}\n", .{vitrt_addr.page_map_level_4, vitrt_addr.page_dir_pointer, vitrt_addr.page_dir, vitrt_addr.page_table});
+    // Get a pointer to some memeory
+
+    // These should be the same
+    const physical_address_from_pt = arch.paging.physical_from_virtual(pt, @bitCast(vitrt_addr));
+    const physical_address_from_hhdm = kernel.mem.physical_from_virtual(@bitCast(vitrt_addr));
+
+    _ = physical_address_from_hhdm;
+
+    const a_ptr : *u64 = @ptrFromInt(kernel.mem.virtual_from_physical(physical_address_from_pt));
+    a_ptr.* = 15;
+
+    drivers.terminal.print("a {}\n", .{a});
+
     done();
 }
