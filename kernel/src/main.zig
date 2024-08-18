@@ -45,7 +45,7 @@ export fn _start() callconv(.C) noreturn {
     const virt_add = kernel.mem.virtual_from_physical(physical_add);
 
     // These should be the same
-    const physical_address_from_pt = arch.paging.physical_from_virtual(arch.paging.get_current_page_table(), virt_add);
+    const physical_address_from_pt = arch.paging.physical_from_virtual(arch.paging.get_current_page_table(), virt_add).?;
     const physical_address_from_hhdm = kernel.mem.physical_from_virtual(virt_add);
 
     drivers.terminal.print("original {x} from hhdm {x} from page tables {x}", .{physical_add, physical_address_from_hhdm, physical_address_from_pt});
