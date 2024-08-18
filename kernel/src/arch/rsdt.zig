@@ -63,7 +63,7 @@ pub fn init() void {
     }
 
     // We need to translate this based on the high half direct mapping from limine
-    rsdt = @ptrFromInt(kernel.mem.physical_to_virtual(rsdp.rsdt));
+    rsdt = @ptrFromInt(kernel.mem.virtual_from_physical(rsdp.rsdt));
     if (!std.mem.eql(u8, "RSDT", &rsdt.header.signature)) {
         @panic("bad RSDT singature");
     }
@@ -72,7 +72,7 @@ pub fn init() void {
 // find_hdr searches for a SDT header in the RSDT
 pub fn find_hdr(signature: [4]u8) !*Header {
     for(rsdt.entries) |addr| {
-        const hdr: *Header = @ptrFromInt(kernel.mem.physical_to_virtual(addr));
+        const hdr: *Header = @ptrFromInt(kernel.mem.virtual_from_physical(addr));
         if(std.mem.eql(u8, &hdr.signature, &signature)) {
             return hdr;
         }
