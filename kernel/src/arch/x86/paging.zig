@@ -11,6 +11,9 @@ pub const page_alignment = 4 * 1024;
 
 // Each table is 4k in size, and is page aligned i.e. 4k aligned. They consists of 512 64 bit entries.
 const page_table_size = 512;
+
+/// PageTable represents a list of 512 entries that make up a layer in the page table structure. Ths same structure is
+/// used to represent the PML4, PDPR, PD, and PT levels as they're similar enough for us to do it that way (for now).
 const PageTable = struct {
     entries: [page_table_size]PageTableEntry,
 
@@ -182,16 +185,18 @@ pub const PageAllocator = struct {
     }
 };
 
-/// VirtualMemoryAddress represents the 4 level of a 64bit long mode page table without the la57 (large addressing using
-/// 57-bits), feature enabled. This feature is only really relevent on super computers with stupid amounts of RAM, so
-/// we'll just pretend it doesn't exist.
+/// VirtualMemoryAddress represents the 4 levels of a 64bit long mode page table i.e. without the la57
+/// (large addressing), feature enabled.
+///
+/// There are 4 parts that index into the page table/directories at each level, and an offset that indexes into the
+/// page itself.
 pub const VirtualMemoryAddress = packed struct(u64) {
     offset: u12, // The offset within the page
     page_table: u9, // i.e. the PT entry
     page_dir: u9, // i.e. the PD entry
     page_dir_pointer: u9, // i.e. the PDPR entry
     page_map_level_4: u9, // i.e. the PML4 entry
-    reserved: u16 = 0, // These are set based on the most significant bit of the rest of the bits
+    sign: u16 = 0, // These are set based on the most significant bit of the rest of the bits
 
     /// For big (2mb) page tables we use both the page table and the offset fields as the offset
     pub fn get_big_page_offset(self: *const VirtualMemoryAddress) usize {
