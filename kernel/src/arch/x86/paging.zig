@@ -17,15 +17,15 @@ const PageTable = struct {
     /// page_number returns the physcal page number for the page table based on it's address in memory
     pub fn page_number(self: *const PageTable) u40 {
         const address = kernel.mem.physical_from_virtual(@intFromPtr(self));
-        return address >> base_address_shift;
+        return @truncate(address >> base_address_shift);
     }
 
     /// alloc_page_table gets a new page from the page table allocator to be used to back a PageTable
     pub fn alloc_page_table() std.mem.Allocator.Error!*PageTable {
         const page = try PageAllocator.alloc();
         const ret: *PageTable = @ptrFromInt(kernel.mem.virtual_from_physical(page << base_address_shift));
-        for (0..ret.len) |i| {
-            ret[i] = @bitCast(0);
+        for (0..ret.entries.len) |i| {
+            ret.entries[i].present = false;
         }
         return ret;
     }
@@ -42,24 +42,24 @@ const PageTable = struct {
                 .writable = opts.writable,
                 .user = opts.user,
                 .no_exec = opts.no_exec,
-                .page_number = physical >> base_address_shift,
+                .page_number = @truncate(physical >> base_address_shift),
             };
             return;
         }
 
         // Otherwise, ask the sub-page to set the entry
         if (entry.present) {
-            entry.get_table().set_entry( virtual, physical, opts, level - 1);
+            try entry.get_table().set_entry( virtual, physical, opts, level - 1);
             return;
         }
 
         // Create the table if it didn't already exist.
         const table = try alloc_page_table();
-        table.set_entry(virtual, physical, opts, level - 1);
+        try table.set_entry(virtual, physical, opts, level - 1);
         self.entries[virtual.idx_for_level(level)] = PageTableEntry{
-            .writable = opts.writable,
-            .user = opts.user,
-            .no_exec = opts.no_exec,
+            .writable = true,
+            .user = false,
+            .no_exec = false,
             .page_number = table.page_number(),
         };
     }
@@ -131,18 +131,8 @@ pub const PageAllocator = struct {
     // Allows for up to 2 TB of memory. This is simple and avoids the need to allocate memory before we have a memory
     // allocator.
     var map: [4 * 1024 * 1024]u64 = [_]u64{std.math.maxInt(u64)} ** (4 * 1024 * 1024); // initialise with all bits set (no free mem)
-    var total_pages: usize = undefined;
-    var map_len: usize = undefined;
-
-    /// init will initialise the page allocator with a given max page size. This should be set based on the total memroy
-    /// that the system has
-    pub fn init(max_pages: usize) void {
-        total_pages = max_pages;
-        map_len = std.math.divCeil(usize, total_pages, 64) catch unreachable;
-        if (map_len > map.len) {
-            @panic("page allocator can only allocate up to 2 TB of memory");
-        }
-    }
+    var total_pages: usize = 0;
+    var map_len: usize = 0;
 
     /// free will mark an already allocated page as free
     pub fn free(page_num: usize) void {
@@ -181,6 +171,11 @@ pub const PageAllocator = struct {
         const from_page = @divExact(from_addr, page_alignment);
         const to_page = @divExact(to_addr, page_alignment);
 
+        if(to_page > total_pages) {
+            total_pages = to_page;
+            map_len = std.math.divCeil(usize, total_pages, 64) catch unreachable;
+        }
+
         for(from_page..to_page) |i| {
             free(i);
         }
@@ -196,7 +191,7 @@ pub const VirtualMemoryAddress = packed struct(u64) {
     page_dir: u9, // i.e. the PD entry
     page_dir_pointer: u9, // i.e. the PDPR entry
     page_map_level_4: u9, // i.e. the PML4 entry
-    reserved: u16 = 0xFFFF, // We have some bits to spare that should always be 1.
+    reserved: u16 = 0, // These are set based on the most significant bit of the rest of the bits
 
     /// For big (2mb) page tables we use both the page table and the offset fields as the offset
     pub fn get_big_page_offset(self: *const VirtualMemoryAddress) usize {
@@ -212,6 +207,10 @@ pub const VirtualMemoryAddress = packed struct(u64) {
             else => unreachable,
         }
     }
+
+    pub fn to_usize(self: *const VirtualMemoryAddress) usize {
+        return @bitCast(self.*);
+    }
 };
 
 pub const RootTable = struct {
@@ -222,10 +221,10 @@ pub const RootTable = struct {
     pub fn map(self: *RootTable, virtual: usize, physical: usize, options: MapOptions) !void {
         std.debug.assert(@mod(virtual, page_alignment) == 0);
         std.debug.assert(@mod(physical, page_alignment) == 0);
-        self.root.set_entry(@bitCast(virtual), physical, options, 4);
+        try self.root.set_entry(@bitCast(virtual), physical, options, 4);
     }
 
-    // physical_from_virtual walks the page table structure to convert a virtual address to a physical one
+    /// physical_from_virtual walks the page table structure to convert a virtual address to a physical one
     pub fn physical_from_virtual(self: *const RootTable, addr: usize) ?usize {
         // The address is broken up into indexes that we can use to look up the page table entries
         const virtual_address: VirtualMemoryAddress = @bitCast(addr);
@@ -269,6 +268,7 @@ pub const RootTable = struct {
     }
 };
 
+/// get_current_page_table returns the page table currently in use i.e. the one cr3 points to
 pub fn get_current_page_table() *RootTable {
     // csr3 contains the base address of the current page table, but the first 12 bits contains flags that we likely
     // don't care about. They should be set to 0 for us by limine, but we should mask them out just incase.
@@ -278,18 +278,12 @@ pub fn get_current_page_table() *RootTable {
 }
 
 pub fn init() void {
-    var length : usize = 0;
     const resp = kernel.mem.mem_map_request.response.?;
     for (resp.entries()) |e| {
         if (e.kind == limine.MemoryMapEntryType.usable) {
+            // Limine guarantees that these regions are 4k aligned
             PageAllocator.set_usable(e.base, e.base + e.length);
-            if(e.base+e.length > length) {
-                length = e.base + e.length;
-            }
-
-            drivers.terminal.print("setting usable 0x{x}\n", .{e.base});
+            drivers.terminal.print("setting usable 0x{x} {}\n", .{e.base, @divExact(e.length, page_alignment)});
         }
     }
-
-    PageAllocator.init(@divExact(length, page_alignment));
 }

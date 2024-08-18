@@ -50,14 +50,38 @@ export fn _start() callconv(.C) noreturn {
 
     drivers.terminal.print("original {x} from hhdm {x} from page tables {x}\n", .{physical_add, physical_address_from_hhdm, physical_address_from_pt});
 
+    // Create a virtual address
+    const virtual_address = arch.paging.VirtualMemoryAddress{
+        .offset = 0,
+        .page_map_level_4 = 0x10,
+        .page_dir_pointer = 0x10,
+        .page_dir = 0x10,
+        .page_table = 0x10,
+        .reserved = 0,
+    };
+    // Create a page
     const page = arch.paging.PageAllocator.alloc() catch unreachable;
-    const page2 = arch.paging.PageAllocator.alloc() catch unreachable;
-    arch.paging.PageAllocator.free(page2);
-    const page3 = arch.paging.PageAllocator.alloc() catch unreachable;
+    const page_physical_address = page << 12; // The page is aligned to 4k, so we shift it left to get it's actual address
+    // Create a new mapping from a virtual address to this page
+    arch.paging.get_current_page_table().map(
+        @bitCast(virtual_address),
+        page_physical_address,
+        .{
+            .no_exec = false,
+            .user = false,
+            .writable = true,
+        },
+    ) catch unreachable;
 
-    drivers.terminal.print("Got page at add: 0x{x} 0x{x} 0x{x}\n", .{page*arch.paging.page_alignment, page2*arch.paging.page_alignment, page3*arch.paging.page_alignment});
-    const a : *u64 = @ptrFromInt(kernel.mem.virtual_from_physical(page*1024*4));
+    // Write to our virtual address
+    const a: *usize = @ptrFromInt(virtual_address.to_usize());
     a.* = 10;
+
+    // Check that the direct mapping reads the value we just got
+    const b: *usize = @ptrFromInt(kernel.mem.virtual_from_physical(page_physical_address));
+    drivers.terminal.print("should be 10: {}\n", .{b.*});
+    b.* = 11;
+    drivers.terminal.print("should be 11: {}\n", .{a.*});
 
     done();
 }
