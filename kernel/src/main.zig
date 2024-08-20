@@ -29,6 +29,7 @@ pub fn panic(message: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noretu
 
 // The following will be our kernel's entry point.
 export fn _start() callconv(.C) noreturn {
+    arch.interupts.init();
     drivers.serial.init();
     kernel.mem.init();
     drivers.terminal.init(std.heap.page_allocator);

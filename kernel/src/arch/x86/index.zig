@@ -10,7 +10,6 @@ pub const paging = @import("paging.zig");
 
 pub fn init() void {
     pic.disable();
-    interupts.init();
     madt.init();
     ioapic.init();
     lapic.init();

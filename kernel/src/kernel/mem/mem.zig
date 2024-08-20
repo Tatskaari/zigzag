@@ -44,6 +44,9 @@ pub const PROT = struct {
     pub const GROWSUP = 0x02000000;
 };
 
+
+// TODO apparently this guy does stuff with files? I guess we need to map memory to a file descriptor once we have a
+// filesystem
 pub fn mmap(
     ptr: ?[*]align(arch.paging.page_alignment) u8,
     length: usize,
@@ -57,9 +60,9 @@ pub fn mmap(
     for (0..pages_needed) |_| {
         const page = try PageMap.alloc();
         // TODO check if the calling process is the kernel when we finally have usespace
-        try pt.map(address, page, arch.paging.MapOptions{
+        try pt.map(address, arch.paging.page_address(page), arch.paging.MapOptions{
             .no_exec = (prot & PROT.EXEC == 0),
-            .writable = prot & PROT.WRITE == 1,
+            .writable = prot & PROT.WRITE != 0,
             .user = false,
         });
         address = address + arch.paging.page_alignment;
@@ -70,7 +73,9 @@ pub fn mmap(
 
 fn get_next_address(pt: *arch.paging.RootTable, ptr: ?[*]align(arch.paging.page_alignment) u8, num_pages: usize) usize {
     if (ptr == null) {
-        return pt.find_range(0, num_pages);
+        // Start from the first page because 0 is used for null pointers. This is a virtual address so we can allocate
+        // anywhere in theory.
+        return pt.find_range(arch.paging.page_address(1), num_pages);
     }
     return pt.find_range(@intFromPtr(ptr.?), num_pages);
 }

@@ -248,6 +248,11 @@ pub const RootTable = struct {
     }
 };
 
+/// page_address returns the address of a given page number
+pub fn page_address(page_number: usize) usize {
+    return page_number << base_address_shift;
+}
+
 /// get_current_page_table returns the page table currently in use i.e. the one cr3 points to
 pub fn get_current_page_table() *RootTable {
     // csr3 contains the base address of the current page table, but the first 12 bits contains flags that we likely
