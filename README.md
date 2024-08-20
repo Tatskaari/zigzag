@@ -24,7 +24,7 @@ The roadmap to achieve this is:
 - [x] PS/2 Keyboard input
 - [ ] Timers
 - [x] Paging: allocating pages and mapping them to virtual addresses
-- [ ] Paging: mmap and a std.heap.PageAllocator
+- [x] Paging: mmap and a std.heap.PageAllocator
 - [ ] Basic userspace + entrypoint
 - [ ] Syscall ABI for memory mapping
 - [ ] Keyboard service 
