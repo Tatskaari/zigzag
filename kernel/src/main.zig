@@ -79,6 +79,9 @@ export fn _start() callconv(.C) noreturn {
         },
     ) catch unreachable;
 
+    const buf = std.heap.page_allocator.alloc(u8, 100) catch unreachable;
+    std.heap.page_allocator.free(buf);
+
     // Write to our virtual address
     const a: *usize = @ptrFromInt(virtual_address.to_usize());
     a.* = 10;

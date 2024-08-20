@@ -34,38 +34,45 @@ const PageTable = struct {
         return ret;
     }
 
-    /// set_entry reccursively sets entries in the page table
-    pub fn set_entry(self: *PageTable,virtual: VirtualMemoryAddress, physical: usize, opts: MapOptions, level: usize) !void {
+    /// set_entry reccursively sets entries in the page table. Will return the physical address of the entry before we
+    /// set the entry. This is useful to free the page that was mapped before.
+    pub fn set_entry(self: *PageTable,virtual: VirtualMemoryAddress, physical: usize, opts: MapOptions, level: usize) !usize {
         const entry = self.entries[virtual.idx_for_level(level)];
         // If we're at the final page table level, we want to set the entry to point to the page, not another table.
         if (level == 1) {
             if (entry.present) {
+                if(physical == 0) {
+                    self.entries[virtual.idx_for_level(level)].present = false;
+                    return self.entries[virtual.idx_for_level(level)].get_base_address();
+                }
+                // TODO do we actually want to allow this?
                 @panic("cannot set entry... entry already set");
             }
+            const before = self.entries[virtual.idx_for_level(level)].get_base_address();
             self.entries[virtual.idx_for_level(level)] = PageTableEntry{
                 .writable = opts.writable,
                 .user = opts.user,
                 .no_exec = opts.no_exec,
                 .page_number = @truncate(physical >> base_address_shift),
             };
-            return;
+            return before;
         }
 
         // Otherwise, ask the sub-page to set the entry
         if (entry.present) {
-            try entry.get_table().set_entry( virtual, physical, opts, level - 1);
-            return;
+            return try entry.get_table().set_entry( virtual, physical, opts, level - 1);
         }
 
         // Create the table if it didn't already exist.
         const table = try alloc_page_table();
-        try table.set_entry(virtual, physical, opts, level - 1);
+        _ = try table.set_entry(virtual, physical, opts, level - 1);
         self.entries[virtual.idx_for_level(level)] = PageTableEntry{
             .writable = true,
             .user = false,
             .no_exec = false,
             .page_number = table.page_number(),
         };
+        return physical;
     }
 };
 
@@ -179,7 +186,12 @@ pub const RootTable = struct {
     pub fn map(self: *RootTable, virtual: usize, physical: usize, options: MapOptions) !void {
         std.debug.assert(@mod(virtual, page_alignment) == 0);
         std.debug.assert(@mod(physical, page_alignment) == 0);
-        try self.root.set_entry(@bitCast(virtual), physical, options, 4);
+        _ = try self.root.set_entry(@bitCast(virtual), physical, options, 4);
+    }
+
+    pub fn unmap(self: *RootTable, virtual: usize) !usize {
+        const opts = MapOptions{.no_exec = false, .writable = false, .user = false};
+        return try self.root.set_entry(@bitCast(virtual), 0, opts, 4);
     }
 
     /// physical_from_virtual walks the page table structure to convert a virtual address to a physical one
@@ -248,9 +260,12 @@ pub const RootTable = struct {
     }
 };
 
-/// page_address returns the address of a given page number
-pub fn page_address(page_number: usize) usize {
+pub fn page_address_from_num(page_number: usize) usize {
     return page_number << base_address_shift;
+}
+
+pub fn page_num_from_address(address: usize) usize {
+    return address >> base_address_shift;
 }
 
 /// get_current_page_table returns the page table currently in use i.e. the one cr3 points to

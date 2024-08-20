@@ -60,7 +60,7 @@ pub fn mmap(
     for (0..pages_needed) |_| {
         const page = try PageMap.alloc();
         // TODO check if the calling process is the kernel when we finally have usespace
-        try pt.map(address, arch.paging.page_address(page), arch.paging.MapOptions{
+        try pt.map(address, arch.paging.page_address_from_num(page), arch.paging.MapOptions{
             .no_exec = (prot & PROT.EXEC == 0),
             .writable = prot & PROT.WRITE != 0,
             .user = false,
@@ -75,14 +75,24 @@ fn get_next_address(pt: *arch.paging.RootTable, ptr: ?[*]align(arch.paging.page_
     if (ptr == null) {
         // Start from the first page because 0 is used for null pointers. This is a virtual address so we can allocate
         // anywhere in theory.
-        return pt.find_range(arch.paging.page_address(1), num_pages);
+        return pt.find_range(arch.paging.page_address_from_num(1), num_pages);
     }
     return pt.find_range(@intFromPtr(ptr.?), num_pages);
 }
 
 pub fn munmap(memory: []align(arch.paging.page_alignment) const u8) void {
-    _ = memory;
-    @panic("todo implement munmap");
+    const pt = arch.paging.get_current_page_table();
+
+    const num_pages = @divExact(std.mem.alignForward(usize, memory.len, arch.paging.page_alignment), arch.paging.page_alignment);
+    var address = @intFromPtr(&memory);
+
+    for(0..num_pages) |_| {
+        const page_address = pt.unmap(address) catch {
+            @panic("failed to unmap page");
+        };
+        PageMap.free(arch.paging.page_num_from_address(page_address));
+        address = address + arch.paging.page_alignment;
+    }
 }
 
 fn init_allocator() void {
