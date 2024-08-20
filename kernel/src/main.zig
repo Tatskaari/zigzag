@@ -18,12 +18,17 @@ inline fn done() noreturn {
 
 // TODO this should panic over serial until we have set up the terminal
 pub fn panic(message: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
-    drivers.terminal.print("{s}", .{message});
+    if(!drivers.terminal.initialised) {
+        drivers.serial.COM1.writer().print("fatal error: {s}\n", .{message}) catch unreachable;
+    } else {
+        drivers.terminal.print("fatal error: {s}\n", .{message});
+    }
     done();
 }
 
 // The following will be our kernel's entry point.
 export fn _start() callconv(.C) noreturn {
+    drivers.serial.init();
     kernel.mem.init();
     drivers.terminal.init(kernel.mem.allocator);
 
