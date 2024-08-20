@@ -1,1 +1,1 @@
-pub const mem = @import("mem.zig");
+pub const mem = @import("mem/mem.zig");
