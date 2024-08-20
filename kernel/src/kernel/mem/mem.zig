@@ -45,8 +45,7 @@ pub const PROT = struct {
 };
 
 
-// TODO apparently this guy does stuff with files? I guess we need to map memory to a file descriptor once we have a
-// filesystem
+// TODO this just pages memory in, for now. We should add support for mapping memory to files in the near future.
 pub fn mmap(
     ptr: ?[*]align(arch.paging.page_alignment) u8,
     length: usize,
@@ -84,7 +83,7 @@ pub fn munmap(memory: []align(arch.paging.page_alignment) const u8) void {
     const pt = arch.paging.get_current_page_table();
 
     const num_pages = @divExact(std.mem.alignForward(usize, memory.len, arch.paging.page_alignment), arch.paging.page_alignment);
-    var address = @intFromPtr(&memory);
+    var address = @intFromPtr(memory.ptr);
 
     for(0..num_pages) |_| {
         const page_address = pt.unmap(address) catch {

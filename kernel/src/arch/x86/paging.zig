@@ -190,6 +190,7 @@ pub const RootTable = struct {
     }
 
     pub fn unmap(self: *RootTable, virtual: usize) !usize {
+        std.debug.assert(@mod(virtual, page_alignment) == 0);
         const opts = MapOptions{.no_exec = false, .writable = false, .user = false};
         return try self.root.set_entry(@bitCast(virtual), 0, opts, 4);
     }
