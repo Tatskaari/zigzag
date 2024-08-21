@@ -1,6 +1,6 @@
 /// PageMap frees and allocates in use pages, using a bitmap to keep track of which pages are currently allocated.
 const std = @import("std");
-const arch = @import("arch");
+const arch = @import("root").arch;
 
 // Allows for up to 2 TB of memory. This is simple and avoids the need to allocate memory before we have a memory
 // allocator.

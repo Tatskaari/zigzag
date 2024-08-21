@@ -1,4 +1,4 @@
-const arch = @import("index.zig");
+const arch = @import("root").arch;
 
 pub const PS2 = struct {
     data: arch.ports.Port,

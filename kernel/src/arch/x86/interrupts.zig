@@ -1,5 +1,5 @@
 const idt = @import("idt.zig");
-const print = @import("drivers").terminal.print;
+const print = @import("root").drivers.terminal.print;
 const lapic = @import("lapic.zig");
 
 export fn divErrISR(state: *idt.InterruptStackFrame) callconv(.Interrupt) void {

@@ -1,6 +1,6 @@
 const std = @import("std");
 const limine = @import("limine");
-const arch = @import("arch");
+const arch = @import("root").arch;
 
 pub const PageMap = @import("PageMap.zig");
 pub const PageAllocator = @import("PageAllocator.zig");

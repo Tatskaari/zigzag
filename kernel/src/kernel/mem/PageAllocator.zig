@@ -1,6 +1,6 @@
 /// PageAllocator is a modified version of the PageAllocator from the stdlib to work with our kernel ABI
 
-const arch = @import("arch");
+const arch = @import("root").arch;
 const std = @import("std");
 const builtin = @import("builtin");
 const Allocator = std.mem.Allocator;

@@ -1,5 +1,5 @@
-const kernel = @import("kernel");
-const terminal = @import("drivers").terminal;
+const kernel = @import("root").kernel;
+const terminal = @import("root").drivers.terminal;
 const rsdt = @import("../rsdt.zig");
 
 const MADT_SIG: [4]u8 = [4]u8{'A', 'P', 'I', 'C'};

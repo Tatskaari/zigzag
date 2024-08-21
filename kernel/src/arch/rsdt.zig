@@ -1,13 +1,13 @@
-// The root system descriptor table (rsdt) is a table that contains descriptors for various parts of the system. This
-// is part of the Advanced Configuration and Power Interface (ACPI). This provides, amoungst other things, the
-// Multiple APIC Description Table (MADT) which we need to find out Advanced Programmable Interrupt Controllers (APIC).
-//
-// Intel really made this hard for us...
-//
-// This package provides functions to search for entries in the RSDT such as the MADT.
+/// The root system descriptor table (rsdt) is a table that contains descriptors for various parts of the system. This
+/// is part of the Advanced Configuration and Power Interface (ACPI). This provides, amoungst other things, the
+/// Multiple APIC Description Table (MADT) which we need to find out Advanced Programmable Interrupt Controllers (APIC).
+///
+/// Intel really made this hard for us...
+///
+/// This package provides functions to search for entries in the RSDT such as the MADT.
 const std = @import("std");
 const limine = @import("limine");
-const kernel = @import("kernel");
+const kernel = @import("root").kernel;
 
 
 pub const Error = error{
