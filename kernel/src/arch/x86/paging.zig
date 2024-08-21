@@ -1,9 +1,11 @@
-/// This file implements
-const limine = @import("limine");
-const kernel = @import("kernel");
-const cpu = @import("cpu/index.zig");
+/// This file implements paging for x86_64
 const std = @import("std");
-const drivers = @import("drivers");
+
+const limine = @import("limine");
+
+const kernel = @import("root").kernel;
+const drivers = @import("root").drivers;
+const cpu = @import("cpu/index.zig");
 
 /// The base address is in terms of pages from 0, not the actually memory address. To convert this, we need to multiply
 /// it by the page size, which is 4k i.e. 2^12. We can do this efficiently with a shift left of 12.

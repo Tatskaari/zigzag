@@ -1,6 +1,6 @@
 const std = @import("std");
 const limine = @import("limine");
-const kernel = @import("kernel");
+const kernel = @import("root").kernel;
 
 const vga = @import("vga.zig");
 

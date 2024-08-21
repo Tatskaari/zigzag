@@ -1,9 +1,10 @@
 const limine = @import("limine");
 const std = @import("std");
-const arch = @import("arch");
-const drivers = @import("drivers");
-const kernel = @import("kernel");
 
+pub const arch = @import("arch/index.zig");
+pub const drivers = @import("drivers/index.zig");
+pub const kernel = @import("kernel/index.zig");
+pub const assets = @import("assets/assets.zig");
 
 pub const os = @import("os.zig");
 
@@ -27,11 +28,6 @@ pub fn panic(message: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noretu
     done();
 }
 
-fn powerLevel(over: i32) ![]u8 {
-    var buf: [20]u8 = undefined;
-    return std.fmt.bufPrint(&buf, "over {d}!", .{over});
-}
-
 // The following will be our kernel's entry point.
 export fn _start() callconv(.C) noreturn {
     arch.interupts.init();
@@ -46,11 +42,6 @@ export fn _start() callconv(.C) noreturn {
 
     arch.rsdt.init();
     arch.init();
-
-    const two = powerLevel(9000) catch unreachable;
-    const one = powerLevel(10) catch unreachable;
-    drivers.terminal.print("{s}\n", .{one});
-    drivers.terminal.print("{s}\n", .{two});
 
     arch.interupts.enable();
     drivers.init();
