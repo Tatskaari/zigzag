@@ -1,6 +1,6 @@
 const kernel = @import("root").kernel;
 const terminal = @import("root").drivers.terminal;
-const msr = @import("cpu/index.zig").msr;
+const msr = @import("cpu.zig").msr;
 
 const apic_base_msr_reg = 0x1B;
 const spurious_int_reg = 0xF0;

@@ -5,7 +5,7 @@ const limine = @import("limine");
 
 const kernel = @import("root").kernel;
 const drivers = @import("root").drivers;
-const cpu = @import("cpu/index.zig");
+const cpu = @import("cpu.zig");
 
 /// The base address is in terms of pages from 0, not the actually memory address. To convert this, we need to multiply
 /// it by the page size, which is 4k i.e. 2^12. We can do this efficiently with a shift left of 12.

@@ -22,7 +22,7 @@ The roadmap to achieve this is:
 - [x] Read the MADT
 - [x] APIC setup
 - [x] PS/2 Keyboard input
-- [ ] Timers
+- [x] PIT timer
 - [x] Paging: allocating pages and mapping them to virtual addresses
 - [x] Paging: mmap and a std.heap.PageAllocator
 - [ ] Basic userspace + entrypoint
