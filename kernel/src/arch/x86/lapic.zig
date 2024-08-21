@@ -2,12 +2,12 @@ const kernel = @import("kernel");
 const terminal = @import("drivers").terminal;
 const msr = @import("cpu/index.zig").msr;
 
-const APIC_BASE_MSR_REG = 0x1B;
-const SPURIOUS_INT_REG = 0xF0;
+const apic_base_msr_reg = 0x1B;
+const spurious_int_reg = 0xF0;
 
-const ID_REG = 0x20;
-const VER_REG = 0x30;
-const EOI_REG = 0xB0;
+const id_reg = 0x20;
+const ver_reg = 0x30;
+const eoi_reg = 0xB0;
 
 const APIC = struct {
     base: usize,
@@ -22,13 +22,13 @@ const APIC = struct {
         return val.*;
     }
 
-    pub fn get_id(self: *const APIC) u32 {
-        const id = self.read(ID_REG);
+    pub fn getId(self: *const APIC) u32 {
+        const id = self.read(id_reg);
         return id;
     }
 
     pub fn end(self: *const APIC) void {
-        self.write(EOI_REG, 0);
+        self.write(eoi_reg, 0);
     }
 };
 
@@ -36,15 +36,15 @@ pub var bootstrap_apic = APIC{.base = undefined};
 
 pub fn get_lapic() APIC {
     // TODO cache these by cpu id
-    return APIC{.base = kernel.mem.virtual_from_physical(msr.read(APIC_BASE_MSR_REG) & 0xFFFFF000)};
+    return APIC{.base = kernel.mem.hhdm.virtualFromPhysical(msr.read(apic_base_msr_reg) & 0xFFFFF000)};
 }
 
 pub fn init() void {
-    bootstrap_apic.base = kernel.mem.virtual_from_physical(msr.read(APIC_BASE_MSR_REG) & 0xFFFFF000);
+    bootstrap_apic.base = kernel.mem.hhdm.virtualFromPhysical(msr.read(apic_base_msr_reg) & 0xFFFFF000);
 
     // To enable the lapic, we set the sprious interrupt reg to 0xFF, and set the enable (8th bit) to 1
-    bootstrap_apic.write(SPURIOUS_INT_REG, bootstrap_apic.read(SPURIOUS_INT_REG) | 0x100);
+    bootstrap_apic.write(spurious_int_reg, bootstrap_apic.read(spurious_int_reg) | 0x100);
     bootstrap_apic.write(0x380, 0);
 
-    terminal.print("lapic version 0x{x}\n", .{bootstrap_apic.read(VER_REG)});
+    terminal.print("lapic version 0x{x}\n", .{bootstrap_apic.read(ver_reg)});
 }

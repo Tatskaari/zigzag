@@ -16,16 +16,19 @@ export var hhdm_request: limine.HhdmRequest = .{};
 // We need this to find a region on memory that we can alloc in
 pub export var mem_map_request = limine.MemoryMapRequest{};
 
-// higher_half_direct_map_offset is the offset used to map from the higher half virutal memory to physical memory
-var hhdm_offset: u64 = undefined;
+/// The kernel is loaded in the higher half, with a direct virtual address mapping. These functions translate between
+/// virtual and physical addresses without the need to go through the page table structures.
+pub const hhdm = struct {
+    var offset: u64 = undefined;
 
-pub inline fn virtual_from_physical(physical: usize) usize {
-    return physical + hhdm_offset;
-}
+    pub inline fn virtualFromPhysical(physical: usize) usize {
+        return physical + offset;
+    }
 
-pub inline fn physical_from_virtual(virtual: usize) usize {
-    return virtual - hhdm_offset;
-}
+    pub inline fn physicalFromVirtual(virtual: usize) usize {
+        return virtual - offset;
+    }
+};
 
 pub const PROT = struct {
     /// page can not be accessed
@@ -51,15 +54,15 @@ pub fn mmap(
     length: usize,
     prot: u32,
 ) std.mem.Allocator.Error![]align(arch.paging.page_alignment) u8 {
-    const pt = arch.paging.get_current_page_table();
+    const pt = arch.paging.getCurrentPageTable();
     const pages_needed = @divExact(length, arch.paging.page_alignment);
 
-    const start_address = get_next_address(pt, ptr, @divExact(length, arch.paging.page_alignment));
+    const start_address = getNextAddress(pt, ptr, @divExact(length, arch.paging.page_alignment));
     var address = start_address;
     for (0..pages_needed) |_| {
         const page = try PageMap.alloc();
         // TODO check if the calling process is the kernel when we finally have usespace
-        try pt.map(address, arch.paging.page_address_from_num(page), arch.paging.MapOptions{
+        try pt.map(address, arch.paging.pageAddressFromNumber(page), arch.paging.MapOptions{
             .no_exec = (prot & PROT.EXEC == 0),
             .writable = prot & PROT.WRITE != 0,
             .user = false,
@@ -70,17 +73,17 @@ pub fn mmap(
     return @alignCast(ret[0..length]);
 }
 
-fn get_next_address(pt: *arch.paging.RootTable, ptr: ?[*]align(arch.paging.page_alignment) u8, num_pages: usize) usize {
+fn getNextAddress(pt: *arch.paging.RootTable, ptr: ?[*]align(arch.paging.page_alignment) u8, num_pages: usize) usize {
     if (ptr == null) {
         // Start from the first page because 0 is used for null pointers. This is a virtual address so we can allocate
         // anywhere in theory.
-        return pt.find_range(arch.paging.page_address_from_num(1), num_pages);
+        return pt.findRange(arch.paging.pageAddressFromNumber(1), num_pages);
     }
-    return pt.find_range(@intFromPtr(ptr.?), num_pages);
+    return pt.findRange(@intFromPtr(ptr.?), num_pages);
 }
 
 pub fn munmap(memory: []align(arch.paging.page_alignment) const u8) void {
-    const pt = arch.paging.get_current_page_table();
+    const pt = arch.paging.getCurrentPageTable();
 
     const num_pages = @divExact(std.mem.alignForward(usize, memory.len, arch.paging.page_alignment), arch.paging.page_alignment);
     var address = @intFromPtr(memory.ptr);
@@ -89,12 +92,12 @@ pub fn munmap(memory: []align(arch.paging.page_alignment) const u8) void {
         const page_address = pt.unmap(address) catch {
             @panic("failed to unmap page");
         };
-        PageMap.free(arch.paging.page_num_from_address(page_address));
+        PageMap.free(arch.paging.pageNumFromAddress(page_address));
         address = address + arch.paging.page_alignment;
     }
 }
 
-fn init_allocator() void {
+fn initAllocator() void {
     if (mem_map_request.response == null) {
         @panic("limine error: failed to get mem_map_request.response");
     }
@@ -103,13 +106,13 @@ fn init_allocator() void {
     for (resp.entries()) |e| {
         if (e.kind == limine.MemoryMapEntryType.usable) {
             // Limine guarantees that these regions are 4k aligned
-            PageMap.set_usable(e.base, e.base + e.length);
+            PageMap.setUsable(e.base, e.base + e.length);
         }
     }
 }
 
 // initialises the offset used to map from the higher half virtual memory to physical and back
-fn init_higher_half_direct_map() void {
+fn initHigherHalfDirectMap() void {
     const maybe_hhdm_response = hhdm_request.response;
 
     if (maybe_hhdm_response == null) {
@@ -118,10 +121,10 @@ fn init_higher_half_direct_map() void {
 
     const hhdm_response = maybe_hhdm_response.?;
 
-    hhdm_offset = hhdm_response.offset;
+    hhdm.offset = hhdm_response.offset;
 }
 
 pub fn init() void {
-    init_higher_half_direct_map();
-    init_allocator();
+    initHigherHalfDirectMap();
+    initAllocator();
 }

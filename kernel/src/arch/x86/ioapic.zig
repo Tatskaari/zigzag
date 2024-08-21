@@ -1,14 +1,15 @@
 const drivers = @import("drivers");
 const madt = @import("madt.zig");
 
-const IOREGSEL_OFFSET = 0x0;
-const IOWIN_OFFSET = 0x10;
+// Offsets from the base register for the two of these
+const io_reg_select_offset = 0x0;
+const io_window_offset = 0x10;
 
 // The version register of the IO APIC
-const IOAPICVER_REG = 1;
+const io_apic_ver_reg = 1;
 
 // The redirect table register of the IO APIC
-const IOAPIC_REDTBL_START = 0x10;
+const io_apic_redirect_table_start_reg = 0x10;
 
 pub const DeliveryMode = enum(u3) {
     fixed = 0b000,
@@ -65,22 +66,22 @@ const APIC = struct {
         self.io_window_reg.* = value;
     }
 
-    pub fn get_number_of_inputs(self: *const APIC) u32 {
-        return ((self.read(IOAPICVER_REG) >> 16) & 0xFF) + 1;
+    pub fn getNumberOfInputs(self: *const APIC) u32 {
+        return ((self.read(io_apic_ver_reg) >> 16) & 0xFF) + 1;
     }
 
-    pub fn write_redirect_entry(self: *const APIC, entry_num: u8, entry: RedirectTableEntry) void {
+    pub fn writeRedirectEntry(self: *const APIC, entry_num: u8, entry: RedirectTableEntry) void {
         // The value is 64 bit so we use 2 registers per entry
-        const offset: u8 = @truncate(IOAPIC_REDTBL_START + entry_num * 2);
+        const offset: u8 = @truncate(io_apic_redirect_table_start_reg + entry_num * 2);
         const value: u64 = @bitCast(entry);
 
         self.write(offset, @truncate(value));
         self.write(offset+1, @truncate(value >> 32));
     }
 
-    pub fn read_redirect_entry(self: *const APIC, entry_num: u8) RedirectTableEntry {
+    pub fn readRedirectEntry(self: *const APIC, entry_num: u8) RedirectTableEntry {
         // The value is 64 bit so we use 2 registers per entry
-        const offset: u8 = @truncate(IOAPIC_REDTBL_START + entry_num * 2);
+        const offset: u8 = @truncate(io_apic_redirect_table_start_reg + entry_num * 2);
         
         const lo : u64 = @intCast(self.read(offset));
         const hi : u64 = @intCast(self.read(offset+1));
@@ -95,9 +96,9 @@ pub var apic = APIC{
 };
 
 pub fn init() void {
-    apic.io_reg_select = @ptrFromInt(madt.io_apic_addr + IOREGSEL_OFFSET);
-    apic.io_window_reg = @ptrFromInt(madt.io_apic_addr + IOWIN_OFFSET);
+    apic.io_reg_select = @ptrFromInt(madt.io_apic_addr + io_reg_select_offset);
+    apic.io_window_reg = @ptrFromInt(madt.io_apic_addr + io_window_offset);
 
-    const ver = apic.read(IOAPICVER_REG);
+    const ver = apic.read(io_apic_ver_reg);
     drivers.terminal.print("Configured ioapic at 0x{x}, version 0x{x}\n", .{madt.io_apic_addr, ver});
 }

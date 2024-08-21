@@ -5,25 +5,25 @@ const keys = @import("keys.zig");
 // TODO pass in event listeners to on key press
 const terminal = @import("../terminal.zig");
 
-const DATA_PORT = 0x60;
-const STATUS_PORT = 0x64;
-const COMMAND_PORT = STATUS_PORT;
+const data_port = 0x60;
+const status_port = 0x64;
+const command_port = status_port;
 
-const DISABLE_PORT_1 = 0xAD;
-const ENABLE_PORT_1 = DISABLE_PORT_1 + 0x01;
-const DISABLE_PORT_2 = 0xA7;
-const ENABLE_PORT_2 = DISABLE_PORT_2 + 0x01;
+const disable_port_1 : u8 = 0xAD;
+const enable_port_1 = disable_port_1 + 0x01;
+const disable_port_2 : u8 = 0xA7;
+const enable_port_2 = disable_port_2 + 0x01;
 
 // The ps/2 keyboard is connected to port 1 of the IO apic
-const IOAPIC_ENTRY_NUM = 1;
+const io_apic_entry_num = 1;
 // We can choose whatever we want
-const IDT_VECTOR = 0x20;
+const idt_vec = 0x20;
 
-const SET_SCAN_CODE_CMD = 0xF0;
+const set_scan_code_cmd = 0xF0;
 
-const SCAN_CODE_1 = 0x43;
-const SCAN_CODE_2 = 0x41;
-const SCAN_CODE_3 = 0x3f;
+const scan_code_1 = 0x43;
+const scan_code_2 = 0x41;
+const scan_code_3 = 0x3f;
 
 const Listener = struct {
     ptr: *anyopaque,
@@ -62,16 +62,16 @@ const Ps2Keyboard = struct {
     }
 
     pub fn enable(self: *const Ps2Keyboard) void {
-        self.ps2.command.write(u8, ENABLE_PORT_1);
-        self.ps2.command.write(u8, ENABLE_PORT_2);
+        self.ps2.command.write(enable_port_1);
+        self.ps2.command.write(enable_port_2);
     }
 
     pub fn disable(self: *const Ps2Keyboard) void {
-        self.ps2.command.write(u8, DISABLE_PORT_1);
-        self.ps2.command.write(u8, DISABLE_PORT_2);
+        self.ps2.command.write(disable_port_1);
+        self.ps2.command.write(disable_port_2);
     }
 
-    pub fn key_pressed(self: *const Ps2Keyboard) void {
+    pub fn keyPressed(self: *const Ps2Keyboard) void {
         const scancode = self.read();
         if (keys.translate(scancode)) |event| {
             for (0..self.key_event_listenr_count) |i| {
@@ -81,7 +81,7 @@ const Ps2Keyboard = struct {
         }
     }
 
-    pub fn add_listener(self: *Ps2Keyboard, l: Listener) void {
+    pub fn addListener(self: *Ps2Keyboard, l: Listener) void {
         self.key_event_listeners[self.key_event_listenr_count] = l;
         self.key_event_listenr_count = self.key_event_listenr_count + 1;
     }
@@ -130,10 +130,10 @@ const TerminalKeyboard = struct {
         }
 
         if (event.key == keys.Key.Backspace and terminal.tty.col > 0) {
-            terminal.tty.set_char(terminal.tty.col, terminal.tty.line, 0); // For the cursor
+            terminal.tty.setChar(terminal.tty.col, terminal.tty.line, 0); // For the cursor
             terminal.tty.col = terminal.tty.col - 1;
-            terminal.tty.set_char(terminal.tty.col, terminal.tty.line, 0);
-            terminal.tty.draw_cursor();
+            terminal.tty.setChar(terminal.tty.col, terminal.tty.line, 0);
+            terminal.tty.drawCursor();
             return;
         }
 
@@ -158,27 +158,27 @@ const TerminalKeyboard = struct {
 var isr1_keyboard = TerminalKeyboard{};
 
 var isr1_ps2_keyboard = Ps2Keyboard{
-    .ps2 = arch.ps2.new(DATA_PORT, STATUS_PORT, COMMAND_PORT),
+    .ps2 = arch.ps2.new(data_port, status_port, command_port),
 };
 
 // The keyboard is connected to pin 1 on the io apic i.e. isr1
 export fn isr1(_: *arch.idt.InterruptStackFrame) callconv(.Interrupt) void {
-    isr1_ps2_keyboard.key_pressed();
+    isr1_ps2_keyboard.keyPressed();
     arch.lapic.get_lapic().end();
 }
 
-fn init_redtbl() void {
-    var entry = arch.ioapic.apic.read_redirect_entry(IOAPIC_ENTRY_NUM);
+fn initRedirectTables() void {
+    var entry = arch.ioapic.apic.readRedirectEntry(io_apic_entry_num);
     entry.mask = false;
-    entry.vector = IDT_VECTOR;
+    entry.vector = idt_vec;
     entry.destination_mode = arch.ioapic.DestinationMode.physical;
-    entry.destination = @truncate(arch.lapic.get_lapic().get_id());
-    arch.ioapic.apic.write_redirect_entry(IOAPIC_ENTRY_NUM, entry);
+    entry.destination = @truncate(arch.lapic.get_lapic().getId());
+    arch.ioapic.apic.writeRedirectEntry(io_apic_entry_num, entry);
 }
 
 pub fn init() void {
-    init_redtbl();
-    arch.idt.setDescriptor(IDT_VECTOR, @intFromPtr(&isr1), 0x8E);
+    initRedirectTables();
+    arch.idt.setDescriptor(idt_vec, @intFromPtr(&isr1), 0x8E);
     isr1_ps2_keyboard.enable();
-    isr1_ps2_keyboard.add_listener(isr1_keyboard.listener());
+    isr1_ps2_keyboard.addListener(isr1_keyboard.listener());
 }

@@ -14,8 +14,8 @@ pub const Terminal = struct {
     line: u32 = 0,
     width: u32,
     height: u32,
-    fg: u32 = @intFromEnum(vga.Gravbox.FG),
-    bg: u32 = @intFromEnum(vga.Gravbox.BG),
+    fg: u32 = @intFromEnum(vga.GravboxColourScheme.FG),
+    bg: u32 = @intFromEnum(vga.GravboxColourScheme.BG),
 
     history: [][]u8,
 
@@ -46,21 +46,21 @@ pub const Terminal = struct {
         }
     }
 
-    pub fn set_char(self: *Terminal, col: u32, row: u32, char: u8) void {
+    pub fn setChar(self: *Terminal, col: u32, row: u32, char: u8) void {
         const x = col;
         const y = @mod(row, self.history.len);
         self.history[y][x] = char;
-        self.draw_char(col, row);
+        self.drawChar(col, row);
     }
 
-    pub fn get_char(self: *Terminal, col: usize, row: usize) u8 {
+    pub fn getChar(self: *Terminal, col: usize, row: usize) u8 {
         const x = col;
         const y = @mod(row, self.history.len);
         return self.history[y][x];
     }
 
     // Convert a line in terminal history to a line in screen space
-    pub fn term_to_screen(self: *Terminal, line: usize) usize {
+    pub fn termToScreen(self: *Terminal, line: usize) usize {
         if (self.line < self.height) {
             return line;
         }
@@ -68,9 +68,9 @@ pub const Terminal = struct {
         return self.height - (self.line - line) - 1;
     }
 
-    pub fn draw_char(self: *Terminal, col: u32, line: u32) void {
-        const char = self.get_char(col, line);
-        const row = self.term_to_screen(line);
+    pub fn drawChar(self: *Terminal, col: u32, line: u32) void {
+        const char = self.getChar(col, line);
+        const row = self.termToScreen(line);
         if (char == 0) {
             self.vga.drawCharAt(col, row, ' ', self.fg, self.bg);
         } else {
@@ -80,8 +80,8 @@ pub const Terminal = struct {
 
     // TODO is this really a concept in the driver? We probably need to expose a few primitives here that can be
     //  implemented by the TTY service
-    pub fn draw_cursor(self: *Terminal) void {
-        const row = self.term_to_screen(self.line);
+    pub fn drawCursor(self: *Terminal) void {
+        const row = self.termToScreen(self.line);
         self.vga.drawCharAt(self.col, row, '_', self.fg, self.bg);
     }
 
@@ -91,12 +91,12 @@ pub const Terminal = struct {
                 break;
             }
             for (0..self.width) |x| {
-                self.draw_char(@intCast(x), @intCast(self.line - y));
+                self.drawChar(@intCast(x), @intCast(self.line - y));
             }
         }
     }
 
-    fn new_line(self: *Terminal) void {
+    fn newLine(self: *Terminal) void {
         self.line = self.line + 1;
         self.col = 0;
         self.redraw();
@@ -109,20 +109,20 @@ pub const Terminal = struct {
 
     pub fn write(self: *Terminal, c: u8) void {
         if (c == '\n') {
-            self.new_line();
-            self.draw_cursor();
+            self.newLine();
+            self.drawCursor();
             return;
         }
         if (c == '\r') {
             return;
         }
 
-        self.set_char(self.col, self.line, c);
+        self.setChar(self.col, self.line, c);
         self.col = self.col + 1;
         if (self.col >= self.width) {
-            self.new_line();
+            self.newLine();
         }
-        self.draw_cursor();
+        self.drawCursor();
     }
 
     pub fn writeAll(self: *Terminal, bytes: []const u8) error{}!usize {
@@ -141,7 +141,7 @@ pub const Terminal = struct {
         self.redraw();
         self.line = 0;
         self.col = 0;
-        self.draw_cursor();
+        self.drawCursor();
     }
 };
 

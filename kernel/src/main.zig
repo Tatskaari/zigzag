@@ -27,6 +27,11 @@ pub fn panic(message: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noretu
     done();
 }
 
+fn powerLevel(over: i32) ![]u8 {
+    var buf: [20]u8 = undefined;
+    return std.fmt.bufPrint(&buf, "over {d}!", .{over});
+}
+
 // The following will be our kernel's entry point.
 export fn _start() callconv(.C) noreturn {
     arch.interupts.init();
@@ -42,17 +47,22 @@ export fn _start() callconv(.C) noreturn {
     arch.rsdt.init();
     arch.init();
 
+    const two = powerLevel(9000) catch unreachable;
+    const one = powerLevel(10) catch unreachable;
+    drivers.terminal.print("{s}\n", .{one});
+    drivers.terminal.print("{s}\n", .{two});
+
     arch.interupts.enable();
     drivers.init();
 
     arch.pci.lspci();
 
     const physical_add = arch.cpu.cr3.read();
-    const virt_add = kernel.mem.virtual_from_physical(physical_add);
+    const virt_add = kernel.mem.hhdm.virtualFromPhysical(physical_add);
 
     // These should be the same
-    const physical_address_from_pt = arch.paging.get_current_page_table().physical_from_virtual(virt_add).?;
-    const physical_address_from_hhdm = kernel.mem.physical_from_virtual(virt_add);
+    const physical_address_from_pt = arch.paging.getCurrentPageTable().physicalFromVirtual(virt_add).?;
+    const physical_address_from_hhdm = kernel.mem.hhdm.physicalFromVirtual(virt_add);
 
     drivers.terminal.print("original {x} from hhdm {x} from page tables {x}\n", .{physical_add, physical_address_from_hhdm, physical_address_from_pt});
 
@@ -69,7 +79,7 @@ export fn _start() callconv(.C) noreturn {
     const page = kernel.mem.PageMap.alloc() catch unreachable;
     const page_physical_address = page << 12; // The page is aligned to 4k, so we shift it left to get it's actual address
     // Create a new mapping from a virtual address to this page
-    arch.paging.get_current_page_table().map(
+    arch.paging.getCurrentPageTable().map(
         @bitCast(virtual_address),
         page_physical_address,
         .{
@@ -87,7 +97,7 @@ export fn _start() callconv(.C) noreturn {
     a.* = 10;
 
     // Check that the direct mapping reads the value we just got
-    const b: *usize = @ptrFromInt(kernel.mem.virtual_from_physical(page_physical_address));
+    const b: *usize = @ptrFromInt(kernel.mem.hhdm.virtualFromPhysical(page_physical_address));
     drivers.terminal.print("should be 10: {}\n", .{b.*});
     b.* = 11;
     drivers.terminal.print("should be 11: {}\n", .{a.*});

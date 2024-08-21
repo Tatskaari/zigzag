@@ -5,12 +5,12 @@ const cpu = @import("cpu/index.zig");
 const std = @import("std");
 const drivers = @import("drivers");
 
-// The base address is in terms of pages from 0, not the actually memory address. To convert this, we need to multiply
-// it by the page size, which is 4k i.e. 2^12. We can do this efficiently with a shift left of 12.
+/// The base address is in terms of pages from 0, not the actually memory address. To convert this, we need to multiply
+/// it by the page size, which is 4k i.e. 2^12. We can do this efficiently with a shift left of 12.
 const base_address_shift = 12;
 pub const page_alignment = 4 * 1024;
 
-// Each table is 4k in size, and is page aligned i.e. 4k aligned. They consists of 512 64 bit entries.
+/// Each table is 4k in size, and is page aligned i.e. 4k aligned. They consists of 512 64 bit entries.
 const page_table_size = 512;
 
 /// PageTable represents a list of 512 entries that make up a layer in the page table structure. Ths same structure is
@@ -19,15 +19,15 @@ const PageTable = struct {
     entries: [page_table_size]PageTableEntry,
 
     /// page_number returns the physcal page number for the page table based on it's address in memory
-    pub fn page_number(self: *const PageTable) u40 {
-        const address = kernel.mem.physical_from_virtual(@intFromPtr(self));
+    pub fn pageNumber(self: *const PageTable) u40 {
+        const address = kernel.mem.hhdm.physicalFromVirtual(@intFromPtr(self));
         return @truncate(address >> base_address_shift);
     }
 
     /// alloc_page_table gets a new page from the page table allocator to be used to back a PageTable
-    fn alloc_page_table() std.mem.Allocator.Error!*PageTable {
+    fn allocPageTable() std.mem.Allocator.Error!*PageTable {
         const page = try kernel.mem.PageMap.alloc();
-        const ret: *PageTable = @ptrFromInt(kernel.mem.virtual_from_physical(page << base_address_shift));
+        const ret: *PageTable = @ptrFromInt(kernel.mem.hhdm.virtualFromPhysical(page << base_address_shift));
         for (0..ret.entries.len) |i| {
             ret.entries[i].present = false;
         }
@@ -36,19 +36,19 @@ const PageTable = struct {
 
     /// set_entry reccursively sets entries in the page table. Will return the physical address of the entry before we
     /// set the entry. This is useful to free the page that was mapped before.
-    pub fn set_entry(self: *PageTable,virtual: VirtualMemoryAddress, physical: usize, opts: MapOptions, level: usize) !usize {
+    pub fn setEntry(self: *PageTable,virtual: VirtualMemoryAddress, physical: usize, opts: MapOptions, level: usize) !usize {
         const entry = self.entries[virtual.idx_for_level(level)];
         // If we're at the final page table level, we want to set the entry to point to the page, not another table.
         if (level == 1) {
             if (entry.present) {
                 if(physical == 0) {
                     self.entries[virtual.idx_for_level(level)].present = false;
-                    return self.entries[virtual.idx_for_level(level)].get_base_address();
+                    return self.entries[virtual.idx_for_level(level)].getBaseAddress();
                 }
                 // TODO do we actually want to allow this?
                 @panic("cannot set entry... entry already set");
             }
-            const before = self.entries[virtual.idx_for_level(level)].get_base_address();
+            const before = self.entries[virtual.idx_for_level(level)].getBaseAddress();
             self.entries[virtual.idx_for_level(level)] = PageTableEntry{
                 .writable = opts.writable,
                 .user = opts.user,
@@ -60,17 +60,17 @@ const PageTable = struct {
 
         // Otherwise, ask the sub-page to set the entry
         if (entry.present) {
-            return try entry.get_table().set_entry( virtual, physical, opts, level - 1);
+            return try entry.getTable().setEntry( virtual, physical, opts, level - 1);
         }
 
         // Create the table if it didn't already exist.
-        const table = try alloc_page_table();
-        _ = try table.set_entry(virtual, physical, opts, level - 1);
+        const table = try allocPageTable();
+        _ = try table.setEntry(virtual, physical, opts, level - 1);
         self.entries[virtual.idx_for_level(level)] = PageTableEntry{
             .writable = true,
             .user = false,
             .no_exec = false,
-            .page_number = table.page_number(),
+            .page_number = table.pageNumber(),
         };
         return physical;
     }
@@ -117,18 +117,18 @@ const PageTableEntry = packed struct(u64) {
     /// Whether memory in this page should not be executed i.e. is data not code
     no_exec: bool = false,
 
-    pub fn get_table(self: *const PageTableEntry) *PageTable {
+    pub fn getTable(self: *const PageTableEntry) *PageTable {
         // The base address is page aligned, so we have to multiply it by 4kb (our page size)
         // Bitshifting it here effectively does that (2^12 == 4k)
-        return @ptrFromInt(kernel.mem.virtual_from_physical(self.get_base_address()));
+        return @ptrFromInt(kernel.mem.hhdm.virtualFromPhysical(self.getBaseAddress()));
     }
 
-    pub fn get_base_address(self: *const PageTableEntry) usize {
+    pub fn getBaseAddress(self: *const PageTableEntry) usize {
         return self.page_number << base_address_shift;
     }
 
     /// Returns the page number of the current entry (not the entry it references)
-    pub fn get_entry_page_number(self: *const PageTableEntry) u40 {
+    pub fn getEntryPageNumber(self: *const PageTableEntry) u40 {
         return @truncate(@intFromPtr(self) >> base_address_shift);
     }
 };
@@ -161,20 +161,17 @@ pub const VirtualMemoryAddress = packed struct(u64) {
         }
     }
 
-    /// cannonicalise sets the sign on the virutal memroy address by checking the most significant bit i.e. bit 9 of
-    /// the page_map_level_4 field.
-    pub fn cannonicalise(self: *const VirtualMemoryAddress) *const VirtualMemoryAddress {
+    /// to_usize cannonicalises the address and converts it to a usize.
+    /// This is done by setting the sign on the virutal memroy address by checking the most significant bit i.e. bit 9
+    /// of the page_map_level_4 field, which is the x86_64 standard for 48 bit virtual addresses.
+    pub fn to_usize(self: *const VirtualMemoryAddress) usize {
         var ret  = self.*;
         if(self.page_map_level_4 & 0x100 != 0) {
             ret.sign = 0xFFFF;
         } else {
             ret.sign = 0;
         }
-        return &ret;
-    }
-
-    pub fn to_usize(self: *const VirtualMemoryAddress) usize {
-        return @bitCast(self.cannonicalise().*);
+        return @bitCast(ret);
     }
 };
 
@@ -186,17 +183,17 @@ pub const RootTable = struct {
     pub fn map(self: *RootTable, virtual: usize, physical: usize, options: MapOptions) !void {
         std.debug.assert(@mod(virtual, page_alignment) == 0);
         std.debug.assert(@mod(physical, page_alignment) == 0);
-        _ = try self.root.set_entry(@bitCast(virtual), physical, options, 4);
+        _ = try self.root.setEntry(@bitCast(virtual), physical, options, 4);
     }
 
     pub fn unmap(self: *RootTable, virtual: usize) !usize {
         std.debug.assert(@mod(virtual, page_alignment) == 0);
         const opts = MapOptions{.no_exec = false, .writable = false, .user = false};
-        return try self.root.set_entry(@bitCast(virtual), 0, opts, 4);
+        return try self.root.setEntry(@bitCast(virtual), 0, opts, 4);
     }
 
     /// physical_from_virtual walks the page table structure to convert a virtual address to a physical one
-    pub fn physical_from_virtual(self: *const RootTable, addr: usize) ?usize {
+    pub fn physicalFromVirtual(self: *const RootTable, addr: usize) ?usize {
         // The address is broken up into indexes that we can use to look up the page table entries
         const virtual_address: VirtualMemoryAddress = @bitCast(addr);
 
@@ -207,7 +204,7 @@ pub const RootTable = struct {
         }
 
         // Level 3: Page directory pointer (reference?)
-        const pdpr_entry = pml4_entry.get_table().entries[virtual_address.page_dir_pointer];
+        const pdpr_entry = pml4_entry.getTable().entries[virtual_address.page_dir_pointer];
         if (!pdpr_entry.present) {
             return null;
         }
@@ -217,7 +214,7 @@ pub const RootTable = struct {
         }
 
         // Level 2: Page directory
-        const pd_entry = pdpr_entry.get_table().entries[virtual_address.page_dir];
+        const pd_entry = pdpr_entry.getTable().entries[virtual_address.page_dir];
         if (!pd_entry.present) {
             return null;
         }
@@ -225,24 +222,24 @@ pub const RootTable = struct {
         // The page directory can point to a 2mb page, in which case we only have 3 levels. We treat the page table part of
         // the virtual address as part of the offset.
         if (pd_entry.big_page_or_pat) {
-            return pd_entry.get_base_address() + virtual_address.get_big_page_offset();
+            return pd_entry.getBaseAddress() + virtual_address.get_big_page_offset();
         }
 
         // Level 1: Page table
-        const pt_entry = pd_entry.get_table().entries[virtual_address.page_table];
+        const pt_entry = pd_entry.getTable().entries[virtual_address.page_table];
         if (!pd_entry.present) {
             return null;
         }
 
         // Level 0: the offset within the page table
-        return pt_entry.get_base_address() + virtual_address.offset;
+        return pt_entry.getBaseAddress() + virtual_address.offset;
     }
 
     /// find_range returns the start address in virutal address space that can fit the requested number of pages
-    pub fn find_range(self: *const RootTable, hint: usize, page_count: usize) usize {
+    pub fn findRange(self: *const RootTable, hint: usize, page_count: usize) usize {
         var address: usize = hint;
 
-        while(!self.check_range(address + page_count*page_alignment, page_count)) {
+        while(!self.checkRange(address + page_count*page_alignment, page_count)) {
             // TODO probably want to implement some kind of max address rather than just litting this integer overflow
             address = address + page_count*page_alignment;
         }
@@ -250,10 +247,10 @@ pub const RootTable = struct {
     }
 
     /// check_range checks to see if there's a range of virutal memory free at that address for a given number of pages
-    fn check_range(self: *const RootTable, start: usize, len: usize) bool {
+    fn checkRange(self: *const RootTable, start: usize, len: usize) bool {
         for(0..len)|n| {
             // Check there's no physical address for this virutal address
-            if(self.physical_from_virtual(@bitCast(start + n*page_alignment)) != null) {
+            if(self.physicalFromVirtual(@bitCast(start + n*page_alignment)) != null) {
                 return false;
             }
         }
@@ -261,19 +258,21 @@ pub const RootTable = struct {
     }
 };
 
-pub fn page_address_from_num(page_number: usize) usize {
+/// pageAddressFromNumber returns the page address from the page number
+pub fn pageAddressFromNumber(page_number: usize) usize {
     return page_number << base_address_shift;
 }
 
-pub fn page_num_from_address(address: usize) usize {
+/// pageNumFromAddress returns the page number for a given address
+pub fn pageNumFromAddress(address: usize) usize {
     return address >> base_address_shift;
 }
 
 /// get_current_page_table returns the page table currently in use i.e. the one cr3 points to
-pub fn get_current_page_table() *RootTable {
+pub fn getCurrentPageTable() *RootTable {
     // csr3 contains the base address of the current page table, but the first 12 bits contains flags that we likely
     // don't care about. They should be set to 0 for us by limine, but we should mask them out just incase.
     // TODO make sure csr3 is set up correctly and all these bits are set to 0
     const physical_addr = cpu.cr3.read() & 0x000FFFFFFFFFFFFF;
-    return @ptrFromInt(kernel.mem.virtual_from_physical(physical_addr));
+    return @ptrFromInt(kernel.mem.hhdm.virtualFromPhysical(physical_addr));
 }

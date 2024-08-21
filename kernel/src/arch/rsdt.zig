@@ -14,7 +14,7 @@ pub const Error = error{
     HeaderNotFound,
 };
 
-const RSDP_DESC_SIG = [8]u8{ 'R', 'S', 'D', ' ', 'P', 'T', 'R', ' ' };
+const rsdp_desc_sig = [8]u8{ 'R', 'S', 'D', ' ', 'P', 'T', 'R', ' ' };
 
 pub export var rsdp_req: limine.RsdpRequest = .{};
 
@@ -63,16 +63,16 @@ pub fn init() void {
     }
 
     // We need to translate this based on the high half direct mapping from limine
-    rsdt = @ptrFromInt(kernel.mem.virtual_from_physical(rsdp.rsdt));
+    rsdt = @ptrFromInt(kernel.mem.hhdm.virtualFromPhysical(rsdp.rsdt));
     if (!std.mem.eql(u8, "RSDT", &rsdt.header.signature)) {
         @panic("bad RSDT singature");
     }
 }
 
 // find_hdr searches for a SDT header in the RSDT
-pub fn find_hdr(signature: [4]u8) !*Header {
+pub fn findHdr(signature: [4]u8) !*Header {
     for(rsdt.entries) |addr| {
-        const hdr: *Header = @ptrFromInt(kernel.mem.virtual_from_physical(addr));
+        const hdr: *Header = @ptrFromInt(kernel.mem.hhdm.virtualFromPhysical(addr));
         if(std.mem.eql(u8, &hdr.signature, &signature)) {
             return hdr;
         }

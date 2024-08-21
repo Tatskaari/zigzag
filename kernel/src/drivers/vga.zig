@@ -1,6 +1,7 @@
 const limine = @import("limine");
 
-pub const Gravbox = enum(u32) {
+/// Some nice colours I found online
+pub const GravboxColourScheme = enum(u32) {
     BG = 0x282828,
     FG = 0xebdbb2,
 };

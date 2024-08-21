@@ -33,12 +33,13 @@ pub inline fn insl(port: u16, addr: anytype, cnt: usize) void {
 pub const Port = struct {
     address: u16,
 
-    pub fn write(self: *const Port, comptime Size: type, value: Size) void {
+    pub fn write(self: *const Port, value: anytype) void {
+        const Size = @TypeOf(value);
         switch (Size) {
             u8 => outb(self.address, value),
             u16 => outw(self.address, value),
             u32 => outl(self.address, value),
-            else => @compileError("ports can only accept u8, u16, or u32"),
+            else => @compileError("ports can only accept u8, u16, or u32, got " ++ @typeName(Size)),
         }
     }
 
@@ -47,7 +48,7 @@ pub const Port = struct {
             u8 => return inb(self.address),
             u16 => return inw(self.address),
             u32 => return inl(self.address),
-            else => @compileError("ports can only accept u8, u16, or u32"),
+            else => @compileError("ports can only accept u8, u16, or u32, got " ++ @typeName(Size)),
         }
     }
 };

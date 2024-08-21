@@ -41,7 +41,7 @@ pub fn alloc() std.mem.Allocator.Error!usize {
 
 /// set_usable sets a range of physical memory to be useable to allocate pages. The start and end address must be
 /// page aligned.
-pub fn set_usable(from_addr: usize, to_addr: usize) void {
+pub fn setUsable(from_addr: usize, to_addr: usize) void {
     const from_page = @divExact(from_addr, arch.paging.page_alignment);
     const to_page = @divExact(to_addr, arch.paging.page_alignment);
 

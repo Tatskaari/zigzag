@@ -1,0 +1,1 @@
+Multi-processing must be enabled in order to use multiple cores. These cores can each run the kernel code on boot to initialize themselves. 
