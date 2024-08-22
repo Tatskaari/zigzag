@@ -16,8 +16,6 @@ const enable_port_2 = disable_port_2 + 0x01;
 
 // The ps/2 keyboard is connected to port 1 of the IO apic
 const io_apic_entry_num = 1;
-// We can choose whatever we want
-const idt_vec = 0x20;
 
 const set_scan_code_cmd = 0xF0;
 
@@ -167,18 +165,18 @@ export fn isr1(_: *arch.idt.InterruptStackFrame) callconv(.Interrupt) void {
     arch.lapic.get_lapic().end();
 }
 
-fn initRedirectTables() void {
+fn initRedirectTables(vec: u8) void {
     var entry = arch.ioapic.apic.readRedirectEntry(io_apic_entry_num);
     entry.mask = false;
-    entry.vector = idt_vec;
+    entry.vector = vec;
     entry.destination_mode = arch.ioapic.DestinationMode.physical;
     entry.destination = @truncate(arch.lapic.get_lapic().getId());
     arch.ioapic.apic.writeRedirectEntry(io_apic_entry_num, entry);
 }
 
 pub fn init() void {
-    initRedirectTables();
-    arch.idt.setDescriptor(idt_vec, @intFromPtr(&isr1), 0, arch.idt.IDTEntry.Kind.interrupt);
+    const vec = arch.idt.registerInterrupt(&isr1, 0);
+    initRedirectTables(vec);
     isr1_ps2_keyboard.enable();
     isr1_ps2_keyboard.addListener(isr1_keyboard.listener());
 }

@@ -6,7 +6,6 @@ const ioapic = @import("ioapic.zig");
 const lapic = @import("lapic.zig");
 
 const redtable_entry_num = 2;
-const idt_vec = 0x21;
 
 const chan_0_data_port = ports.new(0x40);
 const chan_1_data_port = ports.new(0x41);
@@ -37,13 +36,25 @@ pub fn setInterval(count: u16) void {
     chan_0_data_port.write(hi);
 }
 
+pub fn oneShot(count: u16) void {
+    const cmd_byte: u8 = @bitCast(CmdRegisterBitFields{ .mode = modes.one_shot });
+
+    cmd_register.write(cmd_byte);
+
+    const lo: u8 = @truncate(count & 0xFF);
+    const hi: u8 = @truncate(count >> 8);
+
+    chan_0_data_port.write(lo); //low-byte
+    chan_0_data_port.write(hi);
+}
+
 pub fn isr(_: *idt.InterruptStackFrame) callconv(.Interrupt) void {
     serial.COM1.writer().print("got PIT event!\n", .{}) catch unreachable;
     lapic.get_lapic().end();
 }
 
 pub fn init() void {
-    idt.setDescriptor(idt_vec, @intFromPtr(&isr), 0, idt.IDTEntry.Kind.interrupt);
+    const idt_vec = idt.registerInterrupt(&isr, 0);
 
     var entry = ioapic.apic.readRedirectEntry(redtable_entry_num);
     entry.mask = false;
@@ -52,5 +63,6 @@ pub fn init() void {
     entry.destination = @truncate(lapic.get_lapic().getId());
     ioapic.apic.writeRedirectEntry(redtable_entry_num, entry);
 
-    setInterval(0xFFFF);
+    // Test that the PIT works
+    oneShot(0xFFFF);
 }
