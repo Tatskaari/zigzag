@@ -1,4 +1,4 @@
-const arch = @import("root").arch;
+const arch = @import("kernel").arch;
 const std = @import("std");
 const keys = @import("keys.zig");
 

@@ -1,4 +1,4 @@
-const drivers = @import("root").drivers;
+const drivers = @import("kernel").drivers;
 const madt = @import("madt.zig");
 
 // Offsets from the base register for the two of these

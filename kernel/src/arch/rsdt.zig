@@ -7,7 +7,7 @@
 /// This package provides functions to search for entries in the RSDT such as the MADT.
 const std = @import("std");
 const limine = @import("limine");
-const kernel = @import("root").kernel;
+const kernel = @import("kernel").services;
 
 
 pub const Error = error{

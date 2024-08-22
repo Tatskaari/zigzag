@@ -1,4 +1,4 @@
-const arch = @import("root").arch;
+const arch = @import("kernel").arch;
 
 const QEMU_DEBUG_PORT = 0x604;
 
