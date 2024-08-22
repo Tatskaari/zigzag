@@ -1,4 +1,4 @@
-const arch = @import("root").arch;
+const arch = @import("kernel").arch;
 
 pub const PS2 = struct {
     data: arch.ports.Port,

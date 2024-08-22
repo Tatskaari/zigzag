@@ -1,5 +1,5 @@
 const std = @import("std");
-const ports = @import("root").arch.ports;
+const ports = @import("kernel").arch.ports;
 
 const SerialError = error{
     LoopbackTestFailed,

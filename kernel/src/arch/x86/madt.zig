@@ -1,5 +1,5 @@
-const kernel = @import("root").kernel;
-const terminal = @import("root").drivers.terminal;
+const services = @import("kernel").services;
+const terminal = @import("kernel").drivers.terminal;
 const rsdt = @import("../rsdt.zig");
 
 const MADT_SIG: [4]u8 = [4]u8{'A', 'P', 'I', 'C'};
@@ -39,7 +39,7 @@ pub const MADT = extern struct {
     flags: u32 align(1),
 
     pub fn localApicAddress(self: *const MADT) usize {
-        return kernel.mem.hhdm.virtualFromPhysical(@intCast(self.lapic_address));
+        return services.mem.hhdm.virtualFromPhysical(@intCast(self.lapic_address));
     }
 
     pub fn findDeviceEntryByType(self: *const MADT, t: u8) *DeviceListEntry {
@@ -62,7 +62,7 @@ pub const MADT = extern struct {
     pub fn getIoApicAddress(self: *const MADT) usize {
         const entry = self.findDeviceEntryByType(IO_APIC_TYPE);
         const io_apic_entry : *IoApicEntry = @alignCast(@ptrCast(entry));
-        return kernel.mem.hhdm.virtualFromPhysical(@intCast(io_apic_entry.addr));
+        return services.mem.hhdm.virtualFromPhysical(@intCast(io_apic_entry.addr));
     }
 
     pub fn printApics(self: *const MADT) void {
@@ -73,7 +73,7 @@ pub const MADT = extern struct {
         while(true) {
             if(entry.type == 0) {
                 const lapic_entry : *LocalApicEntry = @alignCast(@ptrCast(entry));
-                terminal.print("found local apic in MADT: processor_id: {}, id: {}, virt addr: 0x{x}\n", .{lapic_entry.processor_id, lapic_entry.apic_id, kernel.mem.hhdm.virtualFromPhysical(self.lapic_address)});
+                terminal.print("found local apic in MADT: processor_id: {}, id: {}, virt addr: 0x{x}\n", .{lapic_entry.processor_id, lapic_entry.apic_id, services.mem.hhdm.virtualFromPhysical(self.lapic_address)});
             }
 
             if(entry.type == 1) {

@@ -28,7 +28,7 @@ pub const Font = struct {
 };
 
 pub var font: Font = .{
-    .data = @import("root").assets.vga_font,
+    .data = @import("kernel").assets.vga_font,
 };
 
 pub const VGA = struct {

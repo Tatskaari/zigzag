@@ -24,6 +24,12 @@ pub fn target() std.Target.Query {
 pub fn build(b: *std.Build) void {
     const limine = b.dependency("limine", .{});
 
+    const kernel = b.addModule("kernel", .{
+        .root_source_file = .{ .cwd_relative = "src/kernel_module.zig" }
+    });
+    kernel.addImport("limine", limine.module("limine"));
+    kernel.addImport("kernel", kernel);
+
     // Build the kernel itself.
     const root = b.addExecutable(.{
         .name = "kernel",
@@ -36,6 +42,7 @@ pub fn build(b: *std.Build) void {
     });
 
     root.root_module.addImport("limine", limine.module("limine"));
+    root.root_module.addImport("kernel", kernel);
 
     root.setLinkerScriptPath(b.path("linker.ld"));
 

@@ -3,8 +3,8 @@ const std = @import("std");
 
 const limine = @import("limine");
 
-const kernel = @import("root").kernel;
-const drivers = @import("root").drivers;
+const services = @import("kernel").services;
+const drivers = @import("kernel").drivers;
 const cpu = @import("cpu.zig");
 
 /// The base address is in terms of pages from 0, not the actually memory address. To convert this, we need to multiply
@@ -22,14 +22,14 @@ const PageTable = struct {
 
     /// page_number returns the physcal page number for the page table based on it's address in memory
     pub fn pageNumber(self: *const PageTable) u40 {
-        const address = kernel.mem.hhdm.physicalFromVirtual(@intFromPtr(self));
+        const address = services.mem.hhdm.physicalFromVirtual(@intFromPtr(self));
         return @truncate(address >> base_address_shift);
     }
 
     /// alloc_page_table gets a new page from the page table allocator to be used to back a PageTable
     fn allocPageTable() std.mem.Allocator.Error!*PageTable {
-        const page = try kernel.mem.PageMap.alloc();
-        const ret: *PageTable = @ptrFromInt(kernel.mem.hhdm.virtualFromPhysical(page << base_address_shift));
+        const page = try services.mem.PageMap.alloc();
+        const ret: *PageTable = @ptrFromInt(services.mem.hhdm.virtualFromPhysical(page << base_address_shift));
         for (0..ret.entries.len) |i| {
             ret.entries[i].present = false;
         }
@@ -122,7 +122,7 @@ const PageTableEntry = packed struct(u64) {
     pub fn getTable(self: *const PageTableEntry) *PageTable {
         // The base address is page aligned, so we have to multiply it by 4kb (our page size)
         // Bitshifting it here effectively does that (2^12 == 4k)
-        return @ptrFromInt(kernel.mem.hhdm.virtualFromPhysical(self.getBaseAddress()));
+        return @ptrFromInt(services.mem.hhdm.virtualFromPhysical(self.getBaseAddress()));
     }
 
     pub fn getBaseAddress(self: *const PageTableEntry) usize {
@@ -276,5 +276,5 @@ pub fn getCurrentPageTable() *RootTable {
     // don't care about. They should be set to 0 for us by limine, but we should mask them out just incase.
     // TODO make sure csr3 is set up correctly and all these bits are set to 0
     const physical_addr = cpu.cr3.read() & 0x000FFFFFFFFFFFFF;
-    return @ptrFromInt(kernel.mem.hhdm.virtualFromPhysical(physical_addr));
+    return @ptrFromInt(services.mem.hhdm.virtualFromPhysical(physical_addr));
 }

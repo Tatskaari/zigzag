@@ -1,4 +1,4 @@
-const serial = @import("root").drivers.serial;
+const serial = @import("kernel").drivers.serial;
 
 const ports = @import("ports.zig");
 const idt = @import("idt.zig");
