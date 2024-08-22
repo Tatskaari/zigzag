@@ -43,7 +43,7 @@ pub fn isr(_: *idt.InterruptStackFrame) callconv(.Interrupt) void {
 }
 
 pub fn init() void {
-    idt.setDescriptor(idt_vec, @intFromPtr(&isr), 0x8E);
+    idt.setDescriptor(idt_vec, @intFromPtr(&isr), 0, idt.IDTEntry.Kind.interrupt);
 
     var entry = ioapic.apic.readRedirectEntry(redtable_entry_num);
     entry.mask = false;

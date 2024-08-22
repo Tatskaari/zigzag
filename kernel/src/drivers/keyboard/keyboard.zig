@@ -178,7 +178,7 @@ fn initRedirectTables() void {
 
 pub fn init() void {
     initRedirectTables();
-    arch.idt.setDescriptor(idt_vec, @intFromPtr(&isr1), 0x8E);
+    arch.idt.setDescriptor(idt_vec, @intFromPtr(&isr1), 0, arch.idt.IDTEntry.Kind.interrupt);
     isr1_ps2_keyboard.enable();
     isr1_ps2_keyboard.addListener(isr1_keyboard.listener());
 }

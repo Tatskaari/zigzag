@@ -101,28 +101,28 @@ pub fn enable() void {
 
 // Sets up the basic CPU intrupts
 pub fn init() void {
-    idt.setDescriptor(0, @intFromPtr(&divErrISR), 0);
-    idt.setDescriptor(1, @intFromPtr(&debugISR), 0);
-    idt.setDescriptor(2, @intFromPtr(&nonMaskableISR), 0);
-    idt.setDescriptor(3, @intFromPtr(&breakpointISR), 0);
-    idt.setDescriptor(4, @intFromPtr(&overflowISR), 0);
-    idt.setDescriptor(5, @intFromPtr(&boundRangeExceededISR), 0);
-    idt.setDescriptor(6, @intFromPtr(&invalidOpcodeISR), 0);
-    idt.setDescriptor(7, @intFromPtr(&deviceNotAvailableISR), 0);
-    idt.setDescriptor(8, @intFromPtr(&doubleFaultISR), 0);
-    idt.setDescriptor(10, @intFromPtr(&invalidTSSISR), 0);
-    idt.setDescriptor(11, @intFromPtr(&segmentNotPresentISR), 0);
-    idt.setDescriptor(12, @intFromPtr(&stackSegFaultISR), 0);
-    idt.setDescriptor(13, @intFromPtr(&gpaFaultISR), 0);
-    idt.setDescriptor(14, @intFromPtr(&pageFaultISR), 0);
-    idt.setDescriptor(16, @intFromPtr(&fpuErrISR), 0);
-    idt.setDescriptor(17, @intFromPtr(&alignCheckISR), 0);
-    idt.setDescriptor(18, @intFromPtr(&machineCheckISR), 0);
-    idt.setDescriptor(19, @intFromPtr(&simdErrISR), 0);
+    idt.setDescriptor(0, @intFromPtr(&divErrISR), 0, idt.IDTEntry.Kind.interrupt);
+    idt.setDescriptor(1, @intFromPtr(&debugISR), 0, idt.IDTEntry.Kind.interrupt);
+    idt.setDescriptor(2, @intFromPtr(&nonMaskableISR), 0, idt.IDTEntry.Kind.interrupt);
+    idt.setDescriptor(3, @intFromPtr(&breakpointISR), 0, idt.IDTEntry.Kind.interrupt);
+    idt.setDescriptor(4, @intFromPtr(&overflowISR), 0, idt.IDTEntry.Kind.interrupt);
+    idt.setDescriptor(5, @intFromPtr(&boundRangeExceededISR), 0, idt.IDTEntry.Kind.interrupt);
+    idt.setDescriptor(6, @intFromPtr(&invalidOpcodeISR), 0, idt.IDTEntry.Kind.interrupt);
+    idt.setDescriptor(7, @intFromPtr(&deviceNotAvailableISR), 0, idt.IDTEntry.Kind.interrupt);
+    idt.setDescriptor(8, @intFromPtr(&doubleFaultISR), 0, idt.IDTEntry.Kind.interrupt);
+    idt.setDescriptor(10, @intFromPtr(&invalidTSSISR), 0, idt.IDTEntry.Kind.interrupt);
+    idt.setDescriptor(11, @intFromPtr(&segmentNotPresentISR), 0, idt.IDTEntry.Kind.interrupt);
+    idt.setDescriptor(12, @intFromPtr(&stackSegFaultISR), 0, idt.IDTEntry.Kind.interrupt);
+    idt.setDescriptor(13, @intFromPtr(&gpaFaultISR), 0, idt.IDTEntry.Kind.interrupt);
+    idt.setDescriptor(14, @intFromPtr(&pageFaultISR), 0, idt.IDTEntry.Kind.interrupt);
+    idt.setDescriptor(16, @intFromPtr(&fpuErrISR), 0, idt.IDTEntry.Kind.interrupt);
+    idt.setDescriptor(17, @intFromPtr(&alignCheckISR), 0, idt.IDTEntry.Kind.interrupt);
+    idt.setDescriptor(18, @intFromPtr(&machineCheckISR), 0, idt.IDTEntry.Kind.interrupt);
+    idt.setDescriptor(19, @intFromPtr(&simdErrISR), 0, idt.IDTEntry.Kind.interrupt);
 
 
     // TODO this might make more sense being set from the lapic setup code
-    idt.setDescriptor(0xFF, @intFromPtr(&spuriousIntISR), 0x8E);
+    idt.setDescriptor(0xFF, @intFromPtr(&spuriousIntISR), 0, idt.IDTEntry.Kind.interrupt);
 
     idt.load();
 }
