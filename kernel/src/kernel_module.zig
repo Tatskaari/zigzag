@@ -12,3 +12,5 @@ pub const arch = @import("arch/index.zig");
 
 /// Just some assets that are embedded in the binary (just the terminal font for now)
 pub const assets = @import("assets/assets.zig");
+
+pub const debug = @import("debug.zig");

@@ -17,34 +17,45 @@ inline fn done() noreturn {
 }
 
 pub fn panic(message: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
-    if(!kernel.drivers.terminal.initialised) {
-        kernel.drivers.serial.COM1.writer().print("fatal error: {s}\n", .{message}) catch unreachable;
-    } else {
-        kernel.drivers.terminal.print("fatal error: {s}\n", .{message});
-    }
+    kernel.debug.print("panic: .{s}\n", .{message});
     done();
 }
 
-// The following will be our kernel's entry point.
-export fn _start() callconv(.C) noreturn {
-    kernel.arch.interupts.init();
-    kernel.drivers.serial.init();
-    kernel.services.mem.init();
-    kernel.drivers.terminal.init(std.heap.page_allocator);
+/// stage1 initialises the CPU, gets interrupts working, and debug logging
+pub fn stage1() void {
+    kernel.drivers.serial.init(); // debug logging to serial works at this point
+    kernel.arch.interupts.init(); // now exceptions are handled
+
+    kernel.services.mem.init(); // now we can allocate memory
+    kernel.drivers.terminal.init(std.heap.page_allocator); // now logging happens to the terminal
 
     // Ensure the bootloader actually understands our base revision (see spec).
     if (!base_revision.is_supported()) {
         @panic("boot error: limine bootloader base revision not supported");
     }
 
-    kernel.arch.rsdt.init();
-    kernel.arch.init();
-
+    // Get local interrupts enabled
+    kernel.arch.pic.disable();
+    kernel.arch.lapic.init();
     kernel.arch.interupts.enable();
-    kernel.drivers.init();
+
+
+    // Now get the io apic information from the system descriptor tables
+    const rsdt = kernel.arch.rsdt.getRsdt();
+    const madt = kernel.arch.madt.getMadt(rsdt);
+    const ioapic = kernel.arch.ioapic.getIoApic(madt);
+
+    // Get the PIT and keyboard interrupts set up
+    kernel.arch.pit.init(&ioapic);
+    kernel.drivers.keyboard.init(&ioapic);
+}
+
+
+// The following will be our kernel's entry point.
+export fn _start() callconv(.C) noreturn {
+    stage1();
 
     kernel.arch.pci.lspci();
-
     const physical_add = kernel.arch.cpu.cr3.read();
     const virt_add = kernel.services.mem.hhdm.virtualFromPhysical(physical_add);
 
@@ -52,7 +63,7 @@ export fn _start() callconv(.C) noreturn {
     const physical_address_from_pt = kernel.arch.paging.getCurrentPageTable().physicalFromVirtual(virt_add).?;
     const physical_address_from_hhdm = kernel.services.mem.hhdm.physicalFromVirtual(virt_add);
 
-    kernel.drivers.terminal.print("original {x} from hhdm {x} from page tables {x}\n", .{physical_add, physical_address_from_hhdm, physical_address_from_pt});
+    kernel.debug.print("original {x} from hhdm {x} from page tables {x}\n", .{physical_add, physical_address_from_hhdm, physical_address_from_pt});
 
     // Create a virtual address
     const virtual_address = kernel.arch.paging.VirtualMemoryAddress{
@@ -86,9 +97,9 @@ export fn _start() callconv(.C) noreturn {
 
     // Check that the direct mapping reads the value we just got
     const b: *usize = @ptrFromInt(kernel.services.mem.hhdm.virtualFromPhysical(page_physical_address));
-    kernel.drivers.terminal.print("should be 10: {}\n", .{b.*});
+    kernel.debug.print("should be 10: {}\n", .{b.*});
     b.* = 11;
-    kernel.drivers.terminal.print("should be 11: {}\n", .{a.*});
+    kernel.debug.print("should be 11: {}\n", .{a.*});
 
     done();
 }

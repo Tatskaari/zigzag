@@ -1,4 +1,4 @@
-const drivers = @import("kernel").drivers;
+const kernel = @import("kernel");
 const madt = @import("madt.zig");
 
 // Offsets from the base register for the two of these
@@ -50,7 +50,7 @@ pub const RedirectTableEntry = packed struct {
 };
 
 
-const APIC = struct {
+pub const APIC = struct {
     // We select which register we want to read from here
     io_reg_select: *u8,
     // We can then read/write the value ehre
@@ -90,15 +90,10 @@ const APIC = struct {
     }
 };
 
-pub var apic = APIC{
-    .io_reg_select = undefined,
-    .io_window_reg = undefined,
-};
-
-pub fn init() void {
-    apic.io_reg_select = @ptrFromInt(madt.io_apic_addr + io_reg_select_offset);
-    apic.io_window_reg = @ptrFromInt(madt.io_apic_addr + io_window_offset);
-
-    const ver = apic.read(io_apic_ver_reg);
-    drivers.terminal.print("Configured ioapic at 0x{x}, version 0x{x}\n", .{madt.io_apic_addr, ver});
+pub fn getIoApic(dt: *madt.MADT) APIC {
+    const io_apid_addr = dt.getIoApicAddress();
+    return APIC{
+        .io_reg_select = @ptrFromInt(io_apid_addr + io_reg_select_offset),
+        .io_window_reg = @ptrFromInt(io_apid_addr + io_window_offset),
+    };
 }

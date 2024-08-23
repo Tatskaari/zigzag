@@ -1,5 +1,5 @@
 const hhdm = @import("kernel").services.mem.hhdm;
-const terminal = @import("kernel").drivers.terminal;
+const kernel = @import("kernel");
 const msr = @import("cpu.zig").msr;
 
 const apic_base_msr_reg = 0x1B;
@@ -30,9 +30,12 @@ const APIC = struct {
     pub fn end(self: *const APIC) void {
         self.write(eoi_reg, 0);
     }
-};
 
-pub var bootstrap_apic = APIC{.base = undefined};
+    pub fn enable(self: *const APIC) void {
+        self.write(spurious_int_reg, self.read(spurious_int_reg) | 0x100);
+        self.write(0x380, 0);
+    }
+};
 
 pub fn get_lapic() APIC {
     // TODO cache these by cpu id
@@ -40,11 +43,6 @@ pub fn get_lapic() APIC {
 }
 
 pub fn init() void {
-    bootstrap_apic.base = hhdm.virtualFromPhysical(msr.read(apic_base_msr_reg) & 0xFFFFF000);
-
-    // To enable the lapic, we set the sprious interrupt reg to 0xFF, and set the enable (8th bit) to 1
-    bootstrap_apic.write(spurious_int_reg, bootstrap_apic.read(spurious_int_reg) | 0x100);
-    bootstrap_apic.write(0x380, 0);
-
-    terminal.print("lapic version 0x{x}\n", .{bootstrap_apic.read(ver_reg)});
+    // TODO for each CPU once we enter MP
+    get_lapic().enable();
 }

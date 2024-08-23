@@ -9,12 +9,13 @@ pub const PortAddresses = struct {
     pub const COM1: u16 = 0x3F8;
 };
 
-pub const COM1 = SerialPort{
+pub var COM1 = SerialPort{
     .port = PortAddresses.COM1,
 };
 
 pub const SerialPort = struct {
     port: u16,
+    initialised: bool = false,
 
     pub const Writer = std.io.Writer(
         *const SerialPort,
@@ -26,7 +27,7 @@ pub const SerialPort = struct {
         return .{ .context = self };
     }
 
-    pub fn init(self: *const SerialPort) !void {
+    pub fn init(self: *SerialPort) !void {
         ports.outb(self.port + 1, 0x00); // Disable all interrupts
         ports.outb(self.port + 3, 0x80); // Enable DLAB (set baud rate divisor)
         ports.outb(self.port + 0, 0x03); // Set divisor to 3 (lo byte) 38400 baud
@@ -46,6 +47,7 @@ pub const SerialPort = struct {
         // If serial is not faulty set it in normal operation mode
         // (not-loopback with IRQs enabled and OUT#1 and OUT#2 bits enabled)
         ports.outb(self.port + 4, 0x0F);
+        self.initialised = true;
     }
 
     pub fn writec(self: *const SerialPort, c: u8) void {

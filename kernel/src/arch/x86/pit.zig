@@ -53,16 +53,13 @@ pub fn isr(_: *idt.InterruptStackFrame) callconv(.Interrupt) void {
     lapic.get_lapic().end();
 }
 
-pub fn init() void {
+pub fn init(apic: *const ioapic.APIC) void {
     const idt_vec = idt.registerInterrupt(&isr, 0);
 
-    var entry = ioapic.apic.readRedirectEntry(redtable_entry_num);
+    var entry = apic.readRedirectEntry(redtable_entry_num);
     entry.mask = false;
     entry.vector = idt_vec;
     entry.destination_mode = ioapic.DestinationMode.physical;
     entry.destination = @truncate(lapic.get_lapic().getId());
-    ioapic.apic.writeRedirectEntry(redtable_entry_num, entry);
-
-    // Test that the PIT works
-    oneShot(0xFFFF);
+    apic.writeRedirectEntry(redtable_entry_num, entry);
 }

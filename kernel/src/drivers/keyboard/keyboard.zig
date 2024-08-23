@@ -165,18 +165,18 @@ export fn isr1(_: *arch.idt.InterruptStackFrame) callconv(.Interrupt) void {
     arch.lapic.get_lapic().end();
 }
 
-fn initRedirectTables(vec: u8) void {
-    var entry = arch.ioapic.apic.readRedirectEntry(io_apic_entry_num);
+fn initRedirectTables(ioapic: *const arch.ioapic.APIC, vec: u8) void {
+    var entry = ioapic.readRedirectEntry(io_apic_entry_num);
     entry.mask = false;
     entry.vector = vec;
     entry.destination_mode = arch.ioapic.DestinationMode.physical;
     entry.destination = @truncate(arch.lapic.get_lapic().getId());
-    arch.ioapic.apic.writeRedirectEntry(io_apic_entry_num, entry);
+    ioapic.writeRedirectEntry(io_apic_entry_num, entry);
 }
 
-pub fn init() void {
+pub fn init(ioapic: *const arch.ioapic.APIC) void {
     const vec = arch.idt.registerInterrupt(&isr1, 0);
-    initRedirectTables(vec);
+    initRedirectTables(ioapic, vec);
     isr1_ps2_keyboard.enable();
     isr1_ps2_keyboard.addListener(isr1_keyboard.listener());
 }

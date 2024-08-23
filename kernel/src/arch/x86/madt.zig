@@ -1,5 +1,5 @@
 const services = @import("kernel").services;
-const terminal = @import("kernel").drivers.terminal;
+const kernel = @import("kernel");
 const rsdt = @import("../rsdt.zig");
 
 const MADT_SIG: [4]u8 = [4]u8{'A', 'P', 'I', 'C'};
@@ -73,17 +73,17 @@ pub const MADT = extern struct {
         while(true) {
             if(entry.type == 0) {
                 const lapic_entry : *LocalApicEntry = @alignCast(@ptrCast(entry));
-                terminal.print("found local apic in MADT: processor_id: {}, id: {}, virt addr: 0x{x}\n", .{lapic_entry.processor_id, lapic_entry.apic_id, services.mem.hhdm.virtualFromPhysical(self.lapic_address)});
+                kernel.debug.print("found local apic in MADT: processor_id: {}, id: {}, virt addr: 0x{x}\n", .{lapic_entry.processor_id, lapic_entry.apic_id, services.mem.hhdm.virtualFromPhysical(self.lapic_address)});
             }
 
             if(entry.type == 1) {
                 const io_apic_entry : *IoApicEntry = @alignCast(@ptrCast(entry));
-                terminal.print("found io apic in MADT : id: {}, virt addr: 0x{x}\n", .{io_apic_entry.id, io_apic_entry.addr});
+                kernel.debug.print("found io apic in MADT : id: {}, virt addr: 0x{x}\n", .{io_apic_entry.id, io_apic_entry.addr});
             }
 
             if(entry.type == 2) {
                 const e : *SourceOverrideEntry = @alignCast(@ptrCast(entry));
-                terminal.print("found interrupt source override in the MADT : bus: {}, irq: {}, global: {}\n", .{e.bus_source, e.irq_source, e.global_system_interrupt});
+                kernel.debug.print("found interrupt source override in the MADT : bus: {}, irq: {}, global: {}\n", .{e.bus_source, e.irq_source, e.global_system_interrupt});
             }
 
             const entry_addr = @intFromPtr(entry) + entry.len;
@@ -95,14 +95,9 @@ pub const MADT = extern struct {
     }
 };
 
-pub var madt : *MADT = undefined;
 pub var io_apic_addr : usize = undefined;
 
-pub fn init() void {
-    const hdr = rsdt.findHdr(MADT_SIG) catch @panic("cound't find MADT header");
-    madt = @alignCast(@ptrCast(hdr));
-    io_apic_addr = madt.getIoApicAddress();
-
-    // For diagnostics
-    madt.printApics();
+pub fn getMadt(dt: *rsdt.RSDT) *MADT {
+    const hdr = dt.findHdr(MADT_SIG) catch @panic("cound't find MADT header");
+    return @alignCast(@ptrCast(hdr));
 }

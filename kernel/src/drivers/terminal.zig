@@ -5,8 +5,6 @@ const vga = @import("vga.zig");
 
 pub export var framebuffer_request: limine.FramebufferRequest = .{};
 
-pub var initialised = false;
-
 pub const Terminal = struct {
     vga: vga.VGA = vga.VGA{ .fb = undefined },
     col: u32 = 0,
@@ -17,6 +15,7 @@ pub const Terminal = struct {
     bg: u32 = @intFromEnum(vga.GravboxColourScheme.BG),
 
     history: [][]u8,
+    initialised: bool = false,
 
     pub const Writer = std.io.Writer(
         *Terminal,
@@ -43,6 +42,7 @@ pub const Terminal = struct {
                 self.history[i][j] = 0;
             }
         }
+        self.initialised = true;
     }
 
     pub fn setChar(self: *Terminal, col: u32, row: u32, char: u8) void {
@@ -151,12 +151,6 @@ pub var tty = Terminal{
     .history = undefined,
 };
 
-pub fn print(comptime format: []const u8, args: anytype) void {
-    const w = tty.writer();
-    std.fmt.format(w, format, args) catch unreachable;
-}
-
-
 pub fn init(alloc: std.mem.Allocator) void {
     if (framebuffer_request.response) |framebuffer_response| {
         if (framebuffer_response.framebuffer_count < 1) {
@@ -165,6 +159,5 @@ pub fn init(alloc: std.mem.Allocator) void {
         vga.font.init();
         tty.init(alloc, framebuffer_response.framebuffers()[0], 100);
     }
-    initialised = true;
 }
 
