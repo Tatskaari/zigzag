@@ -1,7 +1,7 @@
-const serial = @import("kernel").drivers.serial;
-
+const kernel = @import("kernel");
 const ports = @import("ports.zig");
 const idt = @import("idt.zig");
+const cpu = @import("cpu.zig");
 const ioapic = @import("ioapic.zig");
 const lapic = @import("lapic.zig");
 
@@ -48,12 +48,21 @@ pub fn oneShot(count: u16) void {
     chan_0_data_port.write(hi);
 }
 
-pub fn isr(_: *idt.InterruptStackFrame) callconv(.Interrupt) void {
-    serial.COM1.writer().print("got PIT event!\n", .{}) catch unreachable;
+
+pub const Callback = struct {
+    context: *anyopaque,
+    func: *const fn (*anyopaque) void,
+};
+
+var callback: Callback = undefined;
+pub fn isr(_: *cpu.Context) callconv(.C) void {
+    callback.func(callback.context);
     lapic.get_lapic().end();
 }
 
-pub fn init(apic: *const ioapic.APIC) void {
+pub fn init(apic: *const ioapic.APIC, handler: Callback) void {
+    callback = handler;
+
     const idt_vec = idt.registerInterrupt(&isr, 0);
 
     var entry = apic.readRedirectEntry(redtable_entry_num);
@@ -62,4 +71,7 @@ pub fn init(apic: *const ioapic.APIC) void {
     entry.destination_mode = ioapic.DestinationMode.physical;
     entry.destination = @truncate(lapic.get_lapic().getId());
     apic.writeRedirectEntry(redtable_entry_num, entry);
+
+    // this comes out at roughly 1ms pulses as the clock is around 1.2mhz
+    setInterval(1194);
 }
