@@ -59,6 +59,11 @@ pub fn stage1() void {
 }
 
 
+pub fn lapicIsr(_: *kernel.arch.cpu.Context) callconv(.C) void {
+    kernel.debug.print("got lapic timer\n", .{});
+    kernel.arch.lapic.get_lapic().end();
+}
+
 // The following will be our kernel's entry point.
 export fn _start() callconv(.C) noreturn {
     stage1();
@@ -67,5 +72,10 @@ export fn _start() callconv(.C) noreturn {
         .func = timerPrint,
         .context = undefined,
     });
+
+    const vec = kernel.arch.idt.registerInterrupt(&lapicIsr, 0);
+
+    kernel.arch.lapic.get_lapic().setTimerIsr(vec, kernel.arch.lapic.APIC.TimerVec.Mode.one_shot);
+    kernel.arch.lapic.get_lapic().setTimerNs(1000*1000); // 1000*1000 == 1 second
     done();
 }

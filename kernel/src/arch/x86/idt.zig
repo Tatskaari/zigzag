@@ -3,9 +3,11 @@
 
 const cpu = @import("cpu.zig");
 
-// next vector stores the next IDT entry vector we can use to register custom vectors. We start at 0x20 to avoid the
-// x86 exception/interupt range
-var next_vector: u8 = 0x20;
+/// Vectors under this value are x86 architecture registers e.g. page fault, or div by zero. This vector, and anything
+/// above are defined by this kernel.
+pub const kernel_start_vector = 0x20;
+
+var next_vector: u8 = kernel_start_vector;
 
 /// IDTEntry is an entry in the interrupt descriptor table
 pub const IDTEntry = packed struct {
@@ -41,7 +43,7 @@ const IDTR = packed struct(u80) {
 /// Interrupt Descriptor Table: the actual table that contains all the interrupt vectors to handle IRQs
 var idt: [256]IDTEntry = undefined;
 
-pub fn setDescriptor(vector: usize, comptime isr: Interrupt, ring: u2, kind: IDTEntry.Kind) void {
+pub fn setDescriptor(vector: u8, comptime isr: Interrupt, ring: u2, kind: IDTEntry.Kind) void {
     const isrPtr = wrapCall(isr);
 
     var entry = &idt[vector];
