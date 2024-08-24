@@ -150,7 +150,7 @@ const Scheduler = struct {
 };
 
 // The period of time between each context switch
-const quanta = 20 * 1000; // 20ms
+const quanta = 100 * 1000; // 100ms
 pub var scheduler: Scheduler = undefined;
 
 fn isr(ctx: *cpu.Context) callconv(.C) void {

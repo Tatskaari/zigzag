@@ -63,8 +63,8 @@ pub fn stage1() void {
 }
 
 fn main() noreturn {
+    var i : u8 = 0; // TODO this value isn't being restored after ticks
     while(true) {
-        var i : u8 = 0; // TODO this value isn't being restored after ticks
         for(0..500000000) |_| {} // Just a delay because we don't have sleep yet
         kernel.debug.print("main: got scheduled! {}\n", .{i});
         i += 1;
