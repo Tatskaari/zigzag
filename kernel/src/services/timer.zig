@@ -2,7 +2,7 @@ const std = @import("std");
 const arch = @import("kernel").arch;
 
 pub const Callback = struct {
-    context: *anyopaque,
+    context: *anyopaque = undefined,
     func:  *const fn(*anyopaque) void
 };
 

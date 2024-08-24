@@ -55,6 +55,8 @@ pub fn stage1() void {
         .context = &kernel.services.timer.timer,
         .func = kernel.services.timer.Timer.tickOpaque,
     });
+
+    kernel.arch.lapic.calibrate(&kernel.services.timer.timer);
     kernel.drivers.keyboard.init(&ioapic);
 }
 

@@ -1,7 +1,10 @@
+const std = @import("std");
+
 const hhdm = @import("kernel").services.mem.hhdm;
 const kernel = @import("kernel");
 const cpu = @import("cpu.zig");
 const idt = @import("idt.zig");
+
 
 const spurious_vec = 0xFF;
 
@@ -15,10 +18,10 @@ const eoi_reg = 0xB0;
 
 const timer_lvt_reg = 0x320;
 const initial_count_reg = 0x380;
+const current_count_reg = 0x390;
 const timer_div_reg = 0x3E0;
 
-// TODO this should calibrated from the PIT but I CBA right now...
-const lapic_ns = 500;
+var lapic_ns_factor : u32 = undefined;
 
 pub const APIC = struct {
     base: usize,
@@ -58,7 +61,7 @@ pub const APIC = struct {
     }
 
     pub fn setTimerNs(self: *const APIC, count: u32) void {
-        self.write(initial_count_reg, count*lapic_ns);
+        self.write(initial_count_reg, count*lapic_ns_factor);
     }
 
     pub const TimerVec = packed struct(u32) {
@@ -84,6 +87,32 @@ export fn spuriousIntISR(state: *cpu.Context) callconv(.C) void {
 pub fn get_lapic() APIC {
     // TODO cache these by cpu id
     return APIC{.base = hhdm.virtualFromPhysical(cpu.msr.read(apic_base_msr_reg) & 0xFFFFF000)};
+}
+
+
+
+pub fn calibrate(timer: *kernel.services.timer.Timer) void {
+    // Make sure the interrupt is masked
+    get_lapic().write(timer_lvt_reg, @bitCast(APIC.TimerVec{
+        .vec = 0,
+        .mask = true,
+        .mode = APIC.TimerVec.Mode.one_shot,
+    }));
+
+    const callback = struct {
+        pub fn calibrationCallback(_: *anyopaque) void {
+            const initial_count = get_lapic().read(initial_count_reg);
+            const current_count = get_lapic().read(current_count_reg);
+
+            lapic_ns_factor = @divFloor(initial_count - current_count, 1000);
+            get_lapic().write(initial_count_reg, 0);
+        }
+    };
+
+    get_lapic().write(initial_count_reg, std.math.maxInt(u32));
+    timer.add_timer(1, false, .{
+        .func = &callback.calibrationCallback,
+    });
 }
 
 pub fn init() void {
