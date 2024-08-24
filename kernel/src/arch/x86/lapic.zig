@@ -22,6 +22,7 @@ const current_count_reg = 0x390;
 const timer_div_reg = 0x3E0;
 
 var lapic_ns_factor : u32 = undefined;
+var calibrated = false;
 
 pub const APIC = struct {
     base: usize,
@@ -89,13 +90,12 @@ pub fn get_lapic() APIC {
     return APIC{.base = hhdm.virtualFromPhysical(cpu.msr.read(apic_base_msr_reg) & 0xFFFFF000)};
 }
 
-
-
 pub fn calibrate(timer: *kernel.services.timer.Timer) void {
-    // Make sure the interrupt is masked
+    const calibration_ms = 10;
+
     get_lapic().write(timer_lvt_reg, @bitCast(APIC.TimerVec{
         .vec = 0,
-        .mask = true,
+        .mask = true,     // Make sure the interrupt is masked... we don't actually want to trigger this.
         .mode = APIC.TimerVec.Mode.one_shot,
     }));
 
@@ -104,15 +104,23 @@ pub fn calibrate(timer: *kernel.services.timer.Timer) void {
             const initial_count = get_lapic().read(initial_count_reg);
             const current_count = get_lapic().read(current_count_reg);
 
-            lapic_ns_factor = @divFloor(initial_count - current_count, 1000);
+            lapic_ns_factor = @divFloor(initial_count - current_count, calibration_ms*1000);
+
+            // reset the initial count. Probably not strictly necessary but is good practice.
             get_lapic().write(initial_count_reg, 0);
+            calibrated = true;
+
+            kernel.debug.print("callibrated the apic to {} ticks per ns\n", .{lapic_ns_factor});
         }
     };
 
     get_lapic().write(initial_count_reg, std.math.maxInt(u32));
-    timer.add_timer(1, false, .{
+    // Add a timer for 1ms from now, so we can see how many ticks the lapic has in that time.
+    timer.add_timer(calibration_ms, false, .{
         .func = &callback.calibrationCallback,
     });
+    
+    while (!calibrated) {}
 }
 
 pub fn init() void {
