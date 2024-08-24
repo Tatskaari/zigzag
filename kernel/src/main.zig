@@ -64,8 +64,18 @@ pub fn stage1() void {
 
 fn main() noreturn {
     while(true) {
-        for(0..1000000000) |_| {}
-        kernel.debug.print("main: got scheduled!\n", .{});
+        var i : u8 = 0;
+        for(0..500000000) |_| {} // Just a delay because we don't have sleep yet
+        kernel.debug.print("main: got scheduled! {}\n", .{i});
+        i += 1;
+    }
+    done();
+}
+
+fn main2() noreturn {
+    while(true) {
+        for(0..500000000) |_| {} // Just a delay because we don't have sleep yet
+        _ = kernel.drivers.serial.COM1.writeAll("main2: got scheduled!\n") catch unreachable;
     }
     done();
 }
@@ -79,6 +89,8 @@ export fn _start() callconv(.C) noreturn {
         .func = timerPrint,
         .context = undefined,
     });
+    const sched = kernel.services.scheduler;
+    _ = sched.scheduler.fork(sched.newContext(), &main2) catch @panic("wahhhh");
 
     // Passes off control to the main thread above.
     kernel.services.scheduler.scheduler.start();

@@ -8,6 +8,7 @@ const stack_size = 16 * 1024;
 const ThreadList = std.ArrayList(Thread);
 
 const Thread = struct {
+    id: usize,
     state: State,
     ctx: cpu.Context,
     stack: []u8,
@@ -31,9 +32,11 @@ const Thread = struct {
 const Scheduler = struct {
     lock: kernel.util.Lock,
 
+    next_id : usize = 1,
+
     // Is incremented every time we execute to keep track of the last execution time for a thread
-    current_execution: usize = 0,
-    current_thread: *Thread = undefined,
+    current_execution: usize = 1,
+    current_thread_id: usize = 1,
 
     threads: ThreadList,
     parked_threads: ThreadList,
@@ -55,9 +58,16 @@ const Scheduler = struct {
         defer self.lock.unlock();
 
         var i: usize = 0;
-        var best_thread = self.current_thread;
+        var best_thread : ?*Thread = null;
         while (i < self.threads.items.len) {
-            var thread = self.threads.items[i];
+            var thread = &self.threads.items[i];
+
+            // Update the current thread with the new context and execution time
+            if (thread.id == self.current_thread_id) {
+                thread.last_executed = self.current_execution;
+                thread.ctx = ctx;
+            }
+
             if (thread.isDead()) {
                 _ = self.threads.swapRemove(i);
                 self.allocator.free(thread.stack);
@@ -66,28 +76,25 @@ const Scheduler = struct {
 
             if (thread.isParked()) {
                 const parked = try self.parked_threads.addOne();
-                parked.* = thread;
+                parked.* = thread.*;
                 _ = self.threads.swapRemove(i);
                 continue;
             }
 
-            if (thread.last_executed < best_thread.last_executed) {
-                best_thread = &thread;
+            if (best_thread == null or thread.last_executed < best_thread.?.last_executed) {
+                best_thread = thread;
             }
 
             i += 1;
         }
 
-        self.current_thread.last_executed = self.current_execution;
-        self.current_thread.ctx = ctx;
-
         self.current_execution += 1;
-        self.current_thread = best_thread;
+        self.current_thread_id = best_thread.?.id;
 
-        return best_thread;
+        return best_thread.?;
     }
 
-    pub fn fork(self: *Scheduler, ctx: cpu.Context, func: *const anyopaque) !*Thread {
+    pub fn fork(self: *Scheduler, ctx: cpu.Context, func: *const anyopaque) !void {
         self.lock.lock();
         defer self.lock.unlock();
 
@@ -97,12 +104,23 @@ const Scheduler = struct {
             .state = Thread.State.ready,
             .stack = stack,
             .ctx = ctx,
+            .id = self.next_id,
         };
+
+        self.next_id += 1;
 
         thread.ctx.rip = @intFromPtr(func);
         thread.ctx.rbp = @intFromPtr(stack.ptr);
         thread.ctx.rsp = thread.ctx.rbp;
-        return thread;
+    }
+
+    pub fn findCurrentThread(self: *Scheduler) *const Thread {
+        for(self.threads.items) |t| {
+            if (t.id == self.current_thread_id) {
+                return &t;
+            }
+        }
+        unreachable;
     }
 
     pub fn start(self: *Scheduler) noreturn {
@@ -111,7 +129,7 @@ const Scheduler = struct {
 
         // Push the iret frame to the stack and call iret
         // TODO do we clean up the kernel's stack?
-        const ctx = self.current_thread.ctx;
+        const ctx = self.findCurrentThread().ctx;
         asm volatile (
             \\ push %[ss]
             \\ push %[rsp]
@@ -132,7 +150,7 @@ const Scheduler = struct {
 };
 
 // The period of time between each context switch
-const quanta = 1000 * 1000; // 20ms
+const quanta = 20 * 1000; // 20ms
 pub var scheduler: Scheduler = undefined;
 
 fn isr(ctx: *cpu.Context) callconv(.C) void {
@@ -142,14 +160,18 @@ fn isr(ctx: *cpu.Context) callconv(.C) void {
     kernel.arch.lapic.getLapic().setTimerNs(quanta);
 }
 
-pub fn init(alloc: std.mem.Allocator, initial: *const anyopaque) void {
-    const ctx = cpu.Context{
+pub fn newContext() cpu.Context {
+    return cpu.Context{
         .cs = cpu.getCS(), // TODO this should enter into userspace and use their segment select
         .ss = cpu.getSS(),
         .rflags = 0x200, // TODO this sets interrupt enable but it's a bit jank.
     };
+}
+
+pub fn init(alloc: std.mem.Allocator, initial: *const anyopaque) void {
+
     scheduler = Scheduler.init(alloc) catch @panic("failed to init scheduler");
-    scheduler.current_thread = scheduler.fork(ctx, initial) catch @panic("failed to fork initial thread");
+    scheduler.fork(newContext(), initial) catch @panic("failed to fork initial thread");
 
     const vec = kernel.arch.idt.registerInterrupt(isr, 0);
     kernel.arch.lapic.getLapic().setTimerIsr(vec, kernel.arch.lapic.APIC.TimerVec.Mode.one_shot);
