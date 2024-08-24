@@ -64,7 +64,7 @@ pub const Timer = struct {
         return struct {
             fn isr(_: arch.idt.InterruptStackFrame) void {
                 self.tick();
-                arch.lapic.get_lapic().end();
+                arch.lapic.getLapic().end();
             }
         };
     }

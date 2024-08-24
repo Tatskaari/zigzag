@@ -85,7 +85,7 @@ export fn spuriousIntISR(state: *cpu.Context) callconv(.C) void {
     while(true){}
 }
 
-pub fn get_lapic() APIC {
+pub fn getLapic() APIC {
     // TODO cache these by cpu id
     return APIC{.base = hhdm.virtualFromPhysical(cpu.msr.read(apic_base_msr_reg) & 0xFFFFF000)};
 }
@@ -93,7 +93,7 @@ pub fn get_lapic() APIC {
 pub fn calibrate(timer: *kernel.services.timer.Timer) void {
     const calibration_ms = 10;
 
-    get_lapic().write(timer_lvt_reg, @bitCast(APIC.TimerVec{
+    getLapic().write(timer_lvt_reg, @bitCast(APIC.TimerVec{
         .vec = 0,
         .mask = true,     // Make sure the interrupt is masked... we don't actually want to trigger this.
         .mode = APIC.TimerVec.Mode.one_shot,
@@ -101,20 +101,20 @@ pub fn calibrate(timer: *kernel.services.timer.Timer) void {
 
     const callback = struct {
         pub fn calibrationCallback(_: *anyopaque) void {
-            const initial_count = get_lapic().read(initial_count_reg);
-            const current_count = get_lapic().read(current_count_reg);
+            const initial_count = getLapic().read(initial_count_reg);
+            const current_count = getLapic().read(current_count_reg);
 
             lapic_ns_factor = @divFloor(initial_count - current_count, calibration_ms*1000);
 
             // reset the initial count. Probably not strictly necessary but is good practice.
-            get_lapic().write(initial_count_reg, 0);
+            getLapic().write(initial_count_reg, 0);
             calibrated = true;
 
             kernel.debug.print("callibrated the apic to {} ticks per ns\n", .{lapic_ns_factor});
         }
     };
 
-    get_lapic().write(initial_count_reg, std.math.maxInt(u32));
+    getLapic().write(initial_count_reg, std.math.maxInt(u32));
     // Add a timer for 1ms from now, so we can see how many ticks the lapic has in that time.
     timer.add_timer(calibration_ms, false, .{
         .func = &callback.calibrationCallback,
@@ -125,6 +125,6 @@ pub fn calibrate(timer: *kernel.services.timer.Timer) void {
 
 pub fn init() void {
     // TODO for each CPU once we enter MP
-    get_lapic().enable();
+    getLapic().enable();
     idt.setDescriptor(spurious_vec, &spuriousIntISR, 0, idt.IDTEntry.Kind.interrupt);
 }

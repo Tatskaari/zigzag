@@ -14,3 +14,5 @@ pub const arch = @import("arch/index.zig");
 pub const assets = @import("assets/assets.zig");
 
 pub const debug = @import("debug.zig");
+
+pub const util = @import("util/index.zig");

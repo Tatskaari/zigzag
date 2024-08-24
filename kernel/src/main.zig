@@ -17,12 +17,12 @@ inline fn done() noreturn {
 }
 
 pub fn panic(message: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
-    kernel.debug.print("panic: .{s}\n", .{message});
+    kernel.debug.print("panic: {s}\n", .{message});
     done();
 }
 
 fn timerPrint(_ : *const anyopaque) void {
-    kernel.debug.print("timer!", .{});
+    kernel.debug.print("timer!\n", .{});
 }
 
 /// stage1 initialises the CPU, gets interrupts working, and debug logging
@@ -58,26 +58,25 @@ pub fn stage1() void {
 
     kernel.arch.lapic.calibrate(&kernel.services.timer.timer);
     kernel.drivers.keyboard.init(&ioapic);
+
+    kernel.services.scheduler.init(std.heap.page_allocator, &main);
 }
 
-
-pub fn lapicIsr(_: *kernel.arch.cpu.Context) callconv(.C) void {
-    kernel.debug.print("got lapic timer\n", .{});
-    kernel.arch.lapic.get_lapic().end();
+fn main() noreturn {
+    kernel.debug.print("main: got scheduled!\n", .{});
+    done();
 }
+
 
 // The following will be our kernel's entry point.
 export fn _start() callconv(.C) noreturn {
     stage1();
-    kernel.arch.pci.lspci();
+    // kernel.arch.pci.lspci();
     kernel.services.timer.timer.add_timer(2000, false, .{
         .func = timerPrint,
         .context = undefined,
     });
 
-    const vec = kernel.arch.idt.registerInterrupt(&lapicIsr, 0);
-
-    kernel.arch.lapic.get_lapic().setTimerIsr(vec, kernel.arch.lapic.APIC.TimerVec.Mode.one_shot);
-    kernel.arch.lapic.get_lapic().setTimerNs(1000*1000); // 1000*1000 == 1 second
-    done();
+    // Passes off control to the main thread above.
+    kernel.services.scheduler.scheduler.start();
 }

@@ -82,6 +82,12 @@ pub inline fn getCS() u16 {
     );
 }
 
+pub inline fn getSS() u16 {
+    return asm volatile ("mov %ss, %[result]"
+        : [result] "=r" (-> u16),
+    );
+}
+
 pub inline fn lidt(idtr: u80) void {
     asm volatile ("lidt %[p]" :: [p] "*p" (&idtr));
 }
