@@ -163,7 +163,7 @@ var isr1_ps2_keyboard = Ps2Keyboard{
 // The keyboard is connected to pin 1 on the io apic i.e. isr1
 export fn isr1(_: *arch.cpu.Context) callconv(.C) void {
     isr1_ps2_keyboard.keyPressed();
-    arch.lapic.get_lapic().end();
+    arch.lapic.getLapic().end();
 }
 
 fn initRedirectTables(ioapic: *const arch.ioapic.APIC, vec: u8) void {
@@ -171,7 +171,7 @@ fn initRedirectTables(ioapic: *const arch.ioapic.APIC, vec: u8) void {
     entry.mask = false;
     entry.vector = vec;
     entry.destination_mode = arch.ioapic.DestinationMode.physical;
-    entry.destination = @truncate(arch.lapic.get_lapic().getId());
+    entry.destination = @truncate(arch.lapic.getLapic().getId());
     ioapic.writeRedirectEntry(io_apic_entry_num, entry);
 }
 

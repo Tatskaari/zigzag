@@ -17,12 +17,12 @@ inline fn done() noreturn {
 }
 
 pub fn panic(message: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
-    kernel.debug.print("panic: .{s}\n", .{message});
+    kernel.debug.print("panic: {s}\n", .{message});
     done();
 }
 
 fn timerPrint(_ : *const anyopaque) void {
-    kernel.debug.print("timer!", .{});
+    kernel.debug.print("timer!\n", .{});
 }
 
 /// stage1 initialises the CPU, gets interrupts working, and debug logging
@@ -58,26 +58,40 @@ pub fn stage1() void {
 
     kernel.arch.lapic.calibrate(&kernel.services.timer.timer);
     kernel.drivers.keyboard.init(&ioapic);
+
+    kernel.services.scheduler.init(std.heap.page_allocator, &main);
 }
 
-
-pub fn lapicIsr(_: *kernel.arch.cpu.Context) callconv(.C) void {
-    kernel.debug.print("got lapic timer\n", .{});
-    kernel.arch.lapic.get_lapic().end();
+fn main() noreturn {
+    var i : u8 = 0; // TODO this value isn't being restored after ticks
+    while(true) {
+        for(0..500000000) |_| {} // Just a delay because we don't have sleep yet
+        kernel.debug.print("main: got scheduled! {}\n", .{i});
+        i += 1;
+    }
+    done();
 }
+
+fn main2() noreturn {
+    while(true) {
+        for(0..500000000) |_| {} // Just a delay because we don't have sleep yet
+        _ = kernel.drivers.serial.COM1.writeAll("main2: got scheduled!\n") catch unreachable;
+    }
+    done();
+}
+
 
 // The following will be our kernel's entry point.
 export fn _start() callconv(.C) noreturn {
     stage1();
-    kernel.arch.pci.lspci();
+    // kernel.arch.pci.lspci();
     kernel.services.timer.timer.add_timer(2000, false, .{
         .func = timerPrint,
         .context = undefined,
     });
+    const sched = kernel.services.scheduler;
+    _ = sched.scheduler.fork(sched.newContext(), &main2) catch @panic("wahhhh");
 
-    const vec = kernel.arch.idt.registerInterrupt(&lapicIsr, 0);
-
-    kernel.arch.lapic.get_lapic().setTimerIsr(vec, kernel.arch.lapic.APIC.TimerVec.Mode.one_shot);
-    kernel.arch.lapic.get_lapic().setTimerNs(1000*1000); // 1000*1000 == 1 second
-    done();
+    // Passes off control to the main thread above.
+    kernel.services.scheduler.scheduler.start();
 }

@@ -1,7 +1,9 @@
 const std = @import("std");
-const limine = @import("limine");
-const arch = @import("kernel").arch;
 
+const limine = @import("limine");
+
+const kernel = @import("kernel");
+const arch = kernel.arch;
 pub const PageMap = @import("PageMap.zig");
 pub const PageAllocator = @import("PageAllocator.zig");
 
@@ -15,31 +17,6 @@ export var hhdm_request: limine.HhdmRequest = .{};
 
 // We need this to find a region on memory that we can alloc in
 pub export var mem_map_request = limine.MemoryMapRequest{};
-
-const AttomicBool = std.atomic.Value(bool);
-
-pub const Lock = struct {
-    locked: AttomicBool,
-
-    pub fn lock(self: *Lock) void {
-        while(true) {
-            const success = self.locked.cmpxchgWeak(false, true, std.builtin.AtomicOrder.acquire, std.builtin.AtomicOrder.acquire);
-            if(success != null) {
-                return;
-            }
-        }
-    }
-
-    pub fn unlock(self: *Lock) void {
-        self.locked.store(false, std.builtin.AtomicOrder.release);
-    }
-
-    pub fn init() Lock {
-        return Lock{
-            .locked = AttomicBool.init(false),
-        };
-    }
-};
 
 /// The kernel is loaded in the higher half, with a direct virtual address mapping. These functions translate between
 /// virtual and physical addresses without the need to go through the page table structures.
@@ -73,7 +50,7 @@ pub const PROT = struct {
 };
 
 
-var mmap_lock = Lock.init();
+var mmap_lock = kernel.util.Lock.init();
 
 // TODO this just pages memory in, for now. We should add support for mapping memory to files in the near future.
 pub fn mmap(

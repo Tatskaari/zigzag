@@ -57,7 +57,7 @@ pub const Callback = struct {
 var callback: Callback = undefined;
 pub fn isr(_: *cpu.Context) callconv(.C) void {
     callback.func(callback.context);
-    lapic.get_lapic().end();
+    lapic.getLapic().end();
 }
 
 pub fn init(apic: *const ioapic.APIC, handler: Callback) void {
@@ -69,7 +69,7 @@ pub fn init(apic: *const ioapic.APIC, handler: Callback) void {
     entry.mask = false;
     entry.vector = idt_vec;
     entry.destination_mode = ioapic.DestinationMode.physical;
-    entry.destination = @truncate(lapic.get_lapic().getId());
+    entry.destination = @truncate(lapic.getLapic().getId());
     apic.writeRedirectEntry(redtable_entry_num, entry);
 
     // this comes out at roughly 1ms pulses as the clock is around 1.2mhz

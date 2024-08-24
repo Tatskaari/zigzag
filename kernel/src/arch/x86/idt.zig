@@ -94,8 +94,11 @@ pub fn wrapCall(comptime isr: Interrupt) usize {
                 \\ mov %ax, %es
                 \\ cld
             );
-            // Call the interrupt
+
+            // TODO it would be better to have a different version of this that allows us to return the iret frame.
+            // Put a pointer to the above context on the stack frame and call the function
             asm volatile (
+                \\ mov %rsp, %rdi
                 \\ call *%[isr]
                 :: [isr] "{rax}" (isr),
             );

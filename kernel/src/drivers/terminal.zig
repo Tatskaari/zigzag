@@ -3,6 +3,8 @@ const limine = @import("limine");
 
 const vga = @import("vga.zig");
 
+const kernel = @import("kernel");
+
 pub export var framebuffer_request: limine.FramebufferRequest = .{};
 
 pub const Terminal = struct {
