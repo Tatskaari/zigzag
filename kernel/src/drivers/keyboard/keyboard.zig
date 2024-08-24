@@ -49,6 +49,7 @@ const Listener = struct {
     }
 };
 
+// TODO this should be more like an event stream rather than doing everything in the interupt handler
 const Ps2Keyboard = struct {
     ps2: arch.ps2.PS2,
     // TODO we should probably make this an ArrayList once we have an allocator to have multiple listeners
@@ -160,7 +161,7 @@ var isr1_ps2_keyboard = Ps2Keyboard{
 };
 
 // The keyboard is connected to pin 1 on the io apic i.e. isr1
-export fn isr1(_: *arch.idt.InterruptStackFrame) callconv(.Interrupt) void {
+export fn isr1(_: *arch.cpu.Context) callconv(.C) void {
     isr1_ps2_keyboard.keyPressed();
     arch.lapic.get_lapic().end();
 }
