@@ -63,7 +63,10 @@ pub fn stage1() void {
 }
 
 fn main() noreturn {
-    kernel.debug.print("main: got scheduled!\n", .{});
+    while(true) {
+        for(0..1000000000) |_| {}
+        kernel.debug.print("main: got scheduled!\n", .{});
+    }
     done();
 }
 
