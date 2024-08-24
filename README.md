@@ -8,7 +8,7 @@ Currently trying to figure out the feature set needed to port binutils and a she
 The feaures are loosely:
 - A userspace
 - A TTY implementation
-- A libc port
+- A libc port (should be easy enough once we have a posix like abi)
 - A filesystem
 
 The roadmap to achieve this is:
@@ -25,17 +25,18 @@ The roadmap to achieve this is:
 - [x] PIT timer
 - [x] Paging: allocating pages and mapping them to virtual addresses
 - [x] Paging: mmap and a std.heap.PageAllocator
+- [x] Lapic timer
+- [x] Scheduler
 - [ ] Basic userspace + entrypoint
 - [ ] Syscall ABI for memory mapping
-- [ ] Keyboard service 
-- [ ] TTY service 
 - [ ] Filesystem service for embedded tar 
+- [ ] ELF loading
+- [ ] Keyboard service
+- [ ] TTY service
 - [x] PCI device discovery
 - [ ] SATA/IDE driver
 - [ ] Read/write FAT-32 filesystem (over IDE)
 - [ ] Open and write syscalls
 - [ ] Create a standard library for userspace programmes
-- [ ] ELF loading
 - [ ] Exec syscall
-- [ ] Round robin scheduler
 - [ ] Fork syscall
