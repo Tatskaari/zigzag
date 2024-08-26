@@ -43,9 +43,8 @@ const IDTR = packed struct(u80) {
 /// Interrupt Descriptor Table: the actual table that contains all the interrupt vectors to handle IRQs
 var idt: [256]IDTEntry = undefined;
 
-pub fn setDescriptor(vector: u8, comptime isr: Interrupt, ring: u2, kind: IDTEntry.Kind) void {
-    const isrPtr = wrapCall(isr);
-
+pub fn setDescriptor(vector: u8, isr: *const anyopaque, ring: u2, kind: IDTEntry.Kind) void {
+    const isrPtr = @intFromPtr(isr);
     var entry = &idt[vector];
 
     entry.isr_low = @truncate(isrPtr & 0xFFFF);
@@ -59,87 +58,28 @@ pub fn setDescriptor(vector: u8, comptime isr: Interrupt, ring: u2, kind: IDTEnt
 }
 
 // Represents the function signature of an interupt
-const Interrupt = *const fn(*cpu.Context) callconv(.C) void;
-
-// wrapCall will wrap the interrupt in C calling convention in a naked function that pushes the CPU context to the stack
-//
-// This code is heavily inspired (stolen?) by the wrapper here:
-// https://github.com/yhyadev/yos/blob/master/src/kernel/arch/x86_64/cpu.zig#L192
-pub fn wrapCall(comptime isr: Interrupt) usize {
-    const closure = struct {
-        pub fn wrapper() callconv(.Naked) void {
-            asm volatile (
-                // Push the CPU state to the stack in reverse order to how they're defined in cpu.Context
-                \\ push %rbp
-                \\ push %rax
-                \\ push %rbx
-                \\ push %rcx
-                \\ push %rdx
-                \\ push %rdi
-                \\ push %rsi
-                \\ push %r8
-                \\ push %r9
-                \\ push %r10
-                \\ push %r11
-                \\ push %r12
-                \\ push %r13
-                \\ push %r14
-                \\ push %r15
-                \\ mov %ds, %rax
-                \\ push %rax
-                \\ mov %es, %rax
-                \\ push %rax
-                \\ mov $0x10, %ax
-                \\ mov %ax, %ds
-                \\ mov %ax, %es
-                \\ cld
-            );
-
-            // TODO it would be better to have a different version of this that allows us to return the iret frame.
-            // Put a pointer to the above context on the stack frame and call the function
-            asm volatile (
-                \\ mov %rsp, %rdi
-                \\ call *%[isr]
-                :: [isr] "{rax}" (isr),
-            );
-
-            // Restore CPU state and return
-            asm volatile (
-                \\ pop %rax
-                \\ mov %rax, %es
-                \\ pop %rax
-                \\ mov %rax, %ds
-                \\ pop %r15
-                \\ pop %r14
-                \\ pop %r13
-                \\ pop %r12
-                \\ pop %r11
-                \\ pop %r10
-                \\ pop %r9
-                \\ pop %r8
-                \\ pop %rsi
-                \\ pop %rdi
-                \\ pop %rdx
-                \\ pop %rcx
-                \\ pop %rbx
-                \\ pop %rax
-                \\ pop %rbp
-                \\ iretq
-            );
-        }
-    };
-    return @intFromPtr(&closure.wrapper);
-}
+const Interrupt = *const fn(state: *InterruptStackFrame) callconv(.Interrupt) void;
 
 /// registerInterrupt adds an IDT entry for the given isr
 pub fn registerInterrupt(comptime isr: Interrupt, ring: u2) u8 {
-    const vec = next_vector;
+    const vec = getVector();
     setDescriptor(vec, isr, ring, IDTEntry.Kind.interrupt);
+    return vec;
+}
+
+pub fn getVector() u8 {
+    const vec = next_vector;
     next_vector += 1;
     return vec;
 }
 
-pub const InterruptStackFrame = cpu.Context;
+pub const InterruptStackFrame = extern struct {
+    eflags: u32,
+    eip: u32,
+    cs: u32,
+    stack_pointer: u32,
+    stack_segment: u32,
+};
 
 pub fn load() void {
     const idtr = IDTR{ .base = @intFromPtr(&idt[0]), .limit = (@sizeOf(@TypeOf(idt))) - 1 };

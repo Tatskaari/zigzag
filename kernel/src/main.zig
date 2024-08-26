@@ -63,19 +63,28 @@ pub fn stage1() void {
 }
 
 fn main() noreturn {
-    var i : u8 = 0; // TODO this value isn't being restored after ticks
+    // const sched = kernel.services.scheduler;
+    // _ = sched.scheduler.fork(sched.newUserspaceContext(), &main2) catch @panic("wahhhh");
+
+    var i : usize = 0;
     while(true) {
-        for(0..500000000) |_| {} // Just a delay because we don't have sleep yet
-        kernel.debug.print("main: got scheduled! {}\n", .{i});
+        for(0..5000000) |_| {} // Just a delay because we don't have sleep yet
+        const writer = kernel.drivers.terminal.tty.writer();
+        std.fmt.format(writer, "main1 : {}\n", .{i}) catch return;
         i += 1;
     }
     done();
 }
 
 fn main2() noreturn {
+    for(0..250000) |_| {}
+
+    var i : usize = 0;
     while(true) {
-        for(0..500000000) |_| {} // Just a delay because we don't have sleep yet
-        _ = kernel.drivers.serial.COM1.writeAll("main2: got scheduled!\n") catch unreachable;
+        for(0..500000) |_| {} // Just a delay because we don't have sleep yet
+        // const writer = kernel.drivers.terminal.tty.writer();
+        // std.fmt.format(writer, "main2 : {}\n", .{i}) catch return;
+        i += 1;
     }
     done();
 }
@@ -89,8 +98,8 @@ export fn _start() callconv(.C) noreturn {
         .func = timerPrint,
         .context = undefined,
     });
-    const sched = kernel.services.scheduler;
-    _ = sched.scheduler.fork(sched.newContext(), &main2) catch @panic("wahhhh");
+
+    kernel.services.scheduler.scheduler.findCurrentThread().run();
 
     // Passes off control to the main thread above.
     kernel.services.scheduler.scheduler.start();

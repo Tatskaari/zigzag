@@ -55,7 +55,7 @@ pub const Callback = struct {
 };
 
 var callback: Callback = undefined;
-pub fn isr(_: *cpu.Context) callconv(.C) void {
+pub fn isr(_: *idt.InterruptStackFrame) callconv(.Interrupt) void {
     callback.func(callback.context);
     lapic.getLapic().end();
 }
