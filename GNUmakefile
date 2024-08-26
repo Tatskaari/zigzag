@@ -24,7 +24,7 @@ all-hdd: $(IMAGE_NAME).hdd
 
 .PHONY: run
 run: $(IMAGE_NAME).iso
-	qemu-system-x86_64 -enable-kvm -serial stdio -M q35 -m 2G -cdrom $(IMAGE_NAME).iso -boot d
+	qemu-system-x86_64 -no-reboot -d int -M q35 -m 2G -cdrom $(IMAGE_NAME).iso -boot d
 
 .PHONY: gdb
 gdb: $(IMAGE_NAME).iso

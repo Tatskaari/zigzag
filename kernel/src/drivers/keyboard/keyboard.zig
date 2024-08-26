@@ -161,7 +161,7 @@ var isr1_ps2_keyboard = Ps2Keyboard{
 };
 
 // The keyboard is connected to pin 1 on the io apic i.e. isr1
-export fn isr1(_: *arch.cpu.Context) callconv(.C) void {
+export fn isr1(_: *arch.idt.InterruptStackFrame) callconv(.Interrupt) void {
     isr1_ps2_keyboard.keyPressed();
     arch.lapic.getLapic().end();
 }

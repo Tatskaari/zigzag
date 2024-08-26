@@ -28,18 +28,18 @@ pub const Timer = struct {
     pub fn tick(self: *Timer) void {
         var i: usize = 0;
         while(i < self.jobs.items.len) {
-            const t = &self.jobs.items[i];
+            const job = &self.jobs.items[i];
 
-            t.count -= 1;
-            if(t.count != 0) {
+            job.count -= 1;
+            if(job.count != 0) {
                 // Not our time yet. Just move on to the next item.
                 i += 1;
                 continue;
             }
 
             // We expired so call the callback
-            t.callback.func(t.callback.context);
-            if (!t.repeat) {
+            job.callback.func(job.callback.context);
+            if (!job.repeat) {
                 // Remove this item from the list. Don't uncrement i, because we swapped in the last element to the current
                 // index.
                 _ = self.jobs.swapRemove(i);
@@ -47,7 +47,7 @@ pub const Timer = struct {
             }
 
             // Re-up on our count!
-            t.count = t.origianl_count;
+            job.count = job.origianl_count;
             i += 1;
         }
     }

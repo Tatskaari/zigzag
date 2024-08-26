@@ -22,8 +22,9 @@ pub const Context = extern struct {
     rbx: u64 = 0,     // Base register (RBX), sometimes used to store a pointer to data.
     rax: u64 = 0,     // Accumulator register (RAX), often used in arithmetic operations.
 
-
     rbp: u64 = 0,     // Base Pointer register (RBP), points to the base of the current stack frame.
+
+    // This is the iret frame and must be in this order, last in the stack for the context switchign to work
     rip: u64 = 0,     // Instruction Pointer / PC register (RIP), points to the next instruction to be executed.
     cs: u64 = 0,      // Code Segment (CS) register, contains the segment selector for the code segment.
     rflags: u64 = 0,  // Flags register, holds the status flags and control flags.
