@@ -1,6 +1,8 @@
 /// This file implements paging for x86_64
 const std = @import("std");
 
+const kernel = @import("kernel");
+
 const limine = @import("limine");
 
 const services = @import("kernel").services;
@@ -178,6 +180,7 @@ pub const VirtualMemoryAddress = packed struct(u64) {
 };
 
 pub const RootTable = struct {
+    lock: kernel.util.Lock = .{},
     root: PageTable,
 
     /// map creates page table entries to map a virutal address to a physical one. Both addresses have to be aligned to
@@ -185,17 +188,24 @@ pub const RootTable = struct {
     pub fn map(self: *RootTable, virtual: usize, physical: usize, options: MapOptions) !void {
         std.debug.assert(@mod(virtual, page_alignment) == 0);
         std.debug.assert(@mod(physical, page_alignment) == 0);
+
+        self.lock.lock();
+        defer self.lock.unlock();
+
         _ = try self.root.setEntry(@bitCast(virtual), physical, options, 4);
     }
 
     pub fn unmap(self: *RootTable, virtual: usize) !usize {
+        self.lock.lock();
+        defer self.lock.unlock();
+
         std.debug.assert(@mod(virtual, page_alignment) == 0);
         const opts = MapOptions{.no_exec = false, .writable = false, .user = false};
         return try self.root.setEntry(@bitCast(virtual), 0, opts, 4);
     }
 
     /// physical_from_virtual walks the page table structure to convert a virtual address to a physical one
-    pub fn physicalFromVirtual(self: *const RootTable, addr: usize) ?usize {
+    fn physicalFromVirtual(self: *const RootTable, addr: usize) ?usize {
         // The address is broken up into indexes that we can use to look up the page table entries
         const virtual_address: VirtualMemoryAddress = @bitCast(addr);
 
@@ -238,7 +248,10 @@ pub const RootTable = struct {
     }
 
     /// find_range returns the start address in virutal address space that can fit the requested number of pages
-    pub fn findRange(self: *const RootTable, hint: usize, page_count: usize) usize {
+    pub fn findRange(self: *RootTable, hint: usize, page_count: usize) usize {
+        self.lock.lock();
+        defer self.lock.unlock();
+
         var address: usize = hint;
 
         while(!self.checkRange(address + page_count*page_alignment, page_count)) {

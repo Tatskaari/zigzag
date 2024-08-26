@@ -49,18 +49,12 @@ pub const PROT = struct {
     pub const GROWSUP = 0x02000000;
 };
 
-
-var mmap_lock = kernel.util.Lock.init();
-
 // TODO this just pages memory in, for now. We should add support for mapping memory to files in the near future.
 pub fn mmap(
     ptr: ?[*]align(arch.paging.page_alignment) u8,
     length: usize,
     prot: u32,
 ) std.mem.Allocator.Error![]align(arch.paging.page_alignment) u8 {
-    mmap_lock.lock();
-    defer mmap_lock.unlock();
-
     const pt = arch.paging.getCurrentPageTable();
     const pages_needed = @divExact(length, arch.paging.page_alignment);
 

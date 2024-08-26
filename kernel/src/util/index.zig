@@ -3,7 +3,7 @@ const std = @import("std");
 const AttomicBool = std.atomic.Value(bool);
 
 pub const Lock = struct {
-    locked: AttomicBool,
+    locked: AttomicBool = .{.raw = false},
 
     pub fn lock(self: *Lock) void {
         while(true) {
@@ -16,11 +16,5 @@ pub const Lock = struct {
 
     pub fn unlock(self: *Lock) void {
         self.locked.store(false, std.builtin.AtomicOrder.release);
-    }
-
-    pub fn init() Lock {
-        return Lock{
-            .locked = AttomicBool.init(false),
-        };
     }
 };

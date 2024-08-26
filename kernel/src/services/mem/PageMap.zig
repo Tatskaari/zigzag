@@ -1,6 +1,9 @@
 /// PageMap frees and allocates in use pages, using a bitmap to keep track of which pages are currently allocated.
 const std = @import("std");
-const arch = @import("kernel").arch;
+const kernel = @import("kernel");
+const arch = kernel.arch;
+
+var lock = kernel.util.Lock{};
 
 // Allows for up to 2 TB of memory. This is simple and avoids the need to allocate memory before we have a memory
 // allocator.
@@ -10,6 +13,9 @@ var map_len: usize = 0;
 
 /// free will mark an already allocated page as free
 pub fn free(page_num: usize) void {
+    lock.lock();
+    defer lock.unlock();
+
     const idx = @divFloor(page_num, 64);
     const mask = ~(@as(usize, 1) << @intCast(@mod(page_num, 64)));
 
@@ -18,6 +24,9 @@ pub fn free(page_num: usize) void {
 
 /// alloc will find the first free page number, mark it as allocated and return
 pub fn alloc() std.mem.Allocator.Error!usize {
+    lock.lock();
+    defer lock.unlock();
+
     for (0..map_len) |i| {
         if (map[i] == std.math.maxInt(u64)) {
             continue; // all bits are set. No free memory here.

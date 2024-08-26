@@ -61,7 +61,7 @@ pub fn stage1() void {
     kernel.services.scheduler.init(std.heap.page_allocator, &main);
 }
 
-var lock = kernel.util.Lock.init();
+var lock = kernel.util.Lock{};
 
 fn main() noreturn {
     const sched = kernel.services.scheduler;
