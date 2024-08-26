@@ -26,11 +26,15 @@ The roadmap to achieve this is:
 - [x] Paging: allocating pages and mapping them to virtual addresses
 - [x] Paging: mmap and a std.heap.PageAllocator
 - [x] Lapic timer
-- [x] Scheduler
+- [x] Scheduler (basic scheduling of threads)
+  - [ ] Implement wait, yield and sleep
+  - [ ] Implement an event queue and terminal thread that listens to keyboard events
+  - [ ] Run lspci from the keybaord listener as a thread
+- [ ] Implement the proc/sys filesystems for pci devices
+- [ ] Processes and elf loading: move lspci out into its own binary
 - [ ] Basic userspace + entrypoint
 - [ ] Syscall ABI for memory mapping
 - [ ] Filesystem service for embedded tar 
-- [ ] ELF loading
 - [ ] Keyboard service
 - [ ] TTY service
 - [x] PCI device discovery

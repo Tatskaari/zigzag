@@ -62,10 +62,11 @@ pub fn stage1() void {
 }
 
 fn main() noreturn {
+    const sched = kernel.services.scheduler;
+    _ = sched.scheduler.fork(sched.newContext(), &main2) catch @panic("wahhhh");
     var i: usize = 0;
     while (true) {
-        for (0..50000000) |_| {} // Just a delay because we don't have sleep yet
-        kernel.debug.print("main: got scheduled! {}\n", .{i});
+        kernel.debug.print("main 1: got scheduled! {}\n", .{i});
         i += 1;
     }
     done();
@@ -74,7 +75,6 @@ fn main() noreturn {
 fn main2() noreturn {
     var i: usize = 0;
     while (true) {
-        for (0..50000000) |_| {} // Just a delay because we don't have sleep yet
         kernel.debug.print("main 2: got scheduled! {}\n", .{i});
         i += 1;
     }
@@ -85,12 +85,6 @@ fn main2() noreturn {
 export fn _start() callconv(.C) noreturn {
     stage1();
     // kernel.arch.pci.lspci();
-    kernel.services.timer.timer.add_timer(2000, false, .{
-        .func = timerPrint,
-        .context = undefined,
-    });
-    const sched = kernel.services.scheduler;
-    _ = sched.scheduler.fork(sched.newContext(), &main2) catch @panic("wahhhh");
 
     // Passes off control to the main thread above.
     kernel.services.scheduler.scheduler.start();

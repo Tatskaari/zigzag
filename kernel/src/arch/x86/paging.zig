@@ -38,14 +38,14 @@ const PageTable = struct {
 
     /// set_entry reccursively sets entries in the page table. Will return the physical address of the entry before we
     /// set the entry. This is useful to free the page that was mapped before.
-    pub fn setEntry(self: *PageTable,virtual: VirtualMemoryAddress, physical: usize, opts: MapOptions, level: usize) !usize {
-        const entry = self.entries[virtual.idx_for_level(level)];
+    pub fn setEntry(self: *PageTable, virtual: VirtualMemoryAddress, physical: usize, opts: MapOptions, level: usize) !usize {
+        const entry = &self.entries[virtual.idx_for_level(level)];
         // If we're at the final page table level, we want to set the entry to point to the page, not another table.
         if (level == 1) {
             if (entry.present) {
                 if(physical == 0) {
-                    self.entries[virtual.idx_for_level(level)].present = false;
-                    return self.entries[virtual.idx_for_level(level)].getBaseAddress();
+                    entry.present = false;
+                    return entry.getBaseAddress();
                 }
                 // TODO do we actually want to allow this?
                 @panic("cannot set entry... entry already set");
