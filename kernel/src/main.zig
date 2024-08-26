@@ -21,7 +21,7 @@ pub fn panic(message: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noretu
     done();
 }
 
-fn timerPrint(_ : *const anyopaque) void {
+fn timerPrint(_: *const anyopaque) void {
     kernel.debug.print("timer!\n", .{});
 }
 
@@ -43,7 +43,6 @@ pub fn stage1() void {
     kernel.arch.lapic.init();
     kernel.arch.interupts.enable();
 
-
     // Now get the io apic information from the system descriptor tables
     const rsdt = kernel.arch.rsdt.getRsdt();
     const madt = kernel.arch.madt.getMadt(rsdt);
@@ -63,9 +62,9 @@ pub fn stage1() void {
 }
 
 fn main() noreturn {
-    var i : u8 = 0; // TODO this value isn't being restored after ticks
-    while(true) {
-        for(0..500000000) |_| {} // Just a delay because we don't have sleep yet
+    var i: usize = 0;
+    while (true) {
+        for (0..50000000) |_| {} // Just a delay because we don't have sleep yet
         kernel.debug.print("main: got scheduled! {}\n", .{i});
         i += 1;
     }
@@ -73,13 +72,14 @@ fn main() noreturn {
 }
 
 fn main2() noreturn {
-    while(true) {
-        for(0..500000000) |_| {} // Just a delay because we don't have sleep yet
-        _ = kernel.drivers.serial.COM1.writeAll("main2: got scheduled!\n") catch unreachable;
+    var i: usize = 0;
+    while (true) {
+        for (0..50000000) |_| {} // Just a delay because we don't have sleep yet
+        kernel.debug.print("main 2: got scheduled! {}\n", .{i});
+        i += 1;
     }
     done();
 }
-
 
 // The following will be our kernel's entry point.
 export fn _start() callconv(.C) noreturn {

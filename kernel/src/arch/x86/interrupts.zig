@@ -93,6 +93,10 @@ pub fn enable() void {
     asm volatile ("sti");
 }
 
+pub inline fn disable() void {
+    asm volatile ("cli");
+}
+
 // Sets up the basic CPU intrupts
 pub fn init() void {
     idt.setDescriptor(0, &divErrISR, 0, idt.IDTEntry.Kind.interrupt);

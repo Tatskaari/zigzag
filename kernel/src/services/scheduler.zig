@@ -29,9 +29,8 @@ const Thread = struct {
     }
 };
 
+// TODO this isn't fair at all and will randomly schedule the same thread twice if there's no tiebreaker
 const Scheduler = struct {
-    lock: kernel.util.Lock,
-
     next_id : usize = 1,
 
     // Is incremented every time we execute to keep track of the last execution time for a thread
@@ -48,17 +47,13 @@ const Scheduler = struct {
             .allocator = alloc,
             .threads = ThreadList.init(alloc),
             .parked_threads = ThreadList.init(alloc),
-            .lock = kernel.util.Lock.init(),
         };
     }
 
     /// getNextThread loops through all the threads to find the one with the lowest last executed time
     pub fn getNextThread(self: *Scheduler, ctx: cpu.Context) !*Thread {
-        self.lock.lock();
-        defer self.lock.unlock();
-
         var i: usize = 0;
-        var best_thread : ?*Thread = null;
+        var best_thread: ?*Thread = null;
         while (i < self.threads.items.len) {
             var thread = &self.threads.items[i];
 
@@ -95,9 +90,6 @@ const Scheduler = struct {
     }
 
     pub fn fork(self: *Scheduler, ctx: cpu.Context, func: *const anyopaque) !void {
-        self.lock.lock();
-        defer self.lock.unlock();
-
         const stack = try self.allocator.alloc(u8, stack_size);
         const thread = try self.threads.addOne();
         thread.* = Thread{
@@ -110,12 +102,13 @@ const Scheduler = struct {
         self.next_id += 1;
 
         thread.ctx.rip = @intFromPtr(func);
-        thread.ctx.rbp = @intFromPtr(stack.ptr);
-        thread.ctx.rsp = thread.ctx.rbp;
+        // The stack grows down
+        thread.ctx.rbp = @intFromPtr(stack.ptr) + stack.len;
+        thread.ctx.rsp = @intFromPtr(stack.ptr) + stack.len;
     }
 
     pub fn findCurrentThread(self: *Scheduler) *const Thread {
-        for(self.threads.items) |t| {
+        for (self.threads.items) |t| {
             if (t.id == self.current_thread_id) {
                 return &t;
             }
