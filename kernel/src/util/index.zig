@@ -7,8 +7,8 @@ pub const Lock = struct {
 
     pub fn lock(self: *Lock) void {
         while(true) {
-            const success = self.locked.cmpxchgWeak(false, true, std.builtin.AtomicOrder.acquire, std.builtin.AtomicOrder.acquire);
-            if(success != null) {
+            const value = self.locked.cmpxchgWeak(false, true, std.builtin.AtomicOrder.acquire, std.builtin.AtomicOrder.acquire);
+            if(value == null) {
                 return;
             }
         }

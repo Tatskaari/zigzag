@@ -3,7 +3,8 @@ const std = @import("std");
 const kernel = @import("kernel");
 const cpu = kernel.arch.cpu;
 
-const stack_size = 16 * 1024;
+// 8mb stacks
+const stack_size = 8 * 1024 * 1024;
 
 const ThreadList = std.ArrayList(Thread);
 
