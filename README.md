@@ -17,7 +17,7 @@ The roadmap to achieve this is:
 - [x] VGA terminal
 - [x] Initialise the interrupt descriptor table
 - [x] MoreCore allocator
-- [ ] Configure the GDT (set the kernel cs and ds)
+- [x] Configure the GDT with kernel and user segments for long mode
 - [x] Read the root system descriptor table
 - [x] Read the MADT
 - [x] APIC setup

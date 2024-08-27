@@ -1,9 +1,9 @@
 const std = @import("std");
 
-const AttomicBool = std.atomic.Value(bool);
 
+/// Lock implements a simple lock, without any special help from the system. This is a spin lock.
 pub const Lock = struct {
-    locked: AttomicBool = .{.raw = false},
+    locked: std.atomic.Value(bool) = .{.raw = false},
 
     pub fn lock(self: *Lock) void {
         while(true) {

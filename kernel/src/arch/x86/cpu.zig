@@ -91,3 +91,8 @@ pub inline fn getSS() u16 {
 pub inline fn lidt(idtr: u80) void {
     asm volatile ("lidt %[p]" :: [p] "*p" (&idtr));
 }
+
+
+pub inline fn lgdt(gdtr: u80) void {
+    asm volatile ("lgdt %[p]" :: [p] "*p" (&gdtr));
+}

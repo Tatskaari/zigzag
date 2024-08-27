@@ -8,3 +8,4 @@ pub const lapic = @import("lapic.zig");
 pub const ioapic = @import("ioapic.zig");
 pub const paging = @import("paging.zig");
 pub const pit = @import("pit.zig");
+pub const gdt = @import("gdt.zig");

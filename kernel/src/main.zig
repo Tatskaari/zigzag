@@ -33,6 +33,7 @@ pub fn stage1() void {
     kernel.services.mem.init(); // now we can allocate memory
     kernel.drivers.terminal.init(std.heap.page_allocator); // now logging happens to the terminal
 
+    kernel.arch.gdt.init();
     // Ensure the bootloader actually understands our base revision (see spec).
     if (!base_revision.is_supported()) {
         @panic("boot error: limine bootloader base revision not supported");
@@ -65,7 +66,7 @@ var lock = kernel.util.Lock{};
 
 fn main() noreturn {
     const sched = kernel.services.scheduler;
-    _ = sched.scheduler.fork(sched.newContext(), &main2) catch @panic("wahhhh");
+    _ = sched.scheduler.fork(sched.newContext(true), &main2) catch @panic("wahhhh");
     var i: usize = 0;
     while (true) {
         lock.lock();

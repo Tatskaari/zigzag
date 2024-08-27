@@ -2,6 +2,9 @@ const std = @import("std");
 
 const kernel = @import("kernel");
 const cpu = kernel.arch.cpu;
+const gdt = kernel.arch.gdt;
+
+const rflag_default = 0x202; // Interrupt enable and some legacy flag
 
 // 8mb stacks
 const stack_size = 8 * 1024 * 1024;
@@ -144,7 +147,7 @@ const Scheduler = struct {
 };
 
 // The period of time between each context switch
-const quanta = 100 * 1000; // 100ms
+const quanta = 20 * 1000; // 100ms
 pub var scheduler: Scheduler = undefined;
 
 fn isr(ctx: *cpu.Context) callconv(.C) void {
@@ -154,18 +157,25 @@ fn isr(ctx: *cpu.Context) callconv(.C) void {
     kernel.arch.lapic.getLapic().setTimerNs(quanta);
 }
 
-pub fn newContext() cpu.Context {
+pub fn newContext(supervisor: bool) cpu.Context {
+    if (supervisor) {
+        return cpu.Context{
+            .cs = gdt.kernel_cs,
+            .ss = gdt.kernel_ds,
+            .rflags = rflag_default,
+        };
+    }
     return cpu.Context{
-        .cs = cpu.getCS(), // TODO this should enter into userspace and use their segment select
-        .ss = cpu.getSS(),
-        .rflags = 0x200, // TODO this sets interrupt enable but it's a bit jank.
+        .cs = gdt.user_cs,
+        .ss = gdt.user_ds,
+        .rflags = rflag_default,
     };
 }
 
 pub fn init(alloc: std.mem.Allocator, initial: *const anyopaque) void {
 
     scheduler = Scheduler.init(alloc) catch @panic("failed to init scheduler");
-    scheduler.fork(newContext(), initial) catch @panic("failed to fork initial thread");
+    scheduler.fork(newContext(true), initial) catch @panic("failed to fork initial thread");
 
     const vec = kernel.arch.idt.registerInterrupt(isr, 0);
     kernel.arch.lapic.getLapic().setTimerIsr(vec, kernel.arch.lapic.APIC.TimerVec.Mode.one_shot);
