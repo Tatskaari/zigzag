@@ -3,7 +3,8 @@ const std = @import("std");
 const kernel = @import("kernel");
 const cpu = kernel.arch.cpu;
 const gdt = kernel.arch.gdt;
-
+const paging = kernel.arch.paging;
+const mem = kernel.services.mem;
 const rflag_default = 0x202; // Interrupt enable and some legacy flag
 
 // 8mb stacks
@@ -35,7 +36,7 @@ const Thread = struct {
 
 // TODO this isn't fair at all and will randomly schedule the same thread twice if there's no tiebreaker
 const Scheduler = struct {
-    next_id : usize = 1,
+    next_id: usize = 1,
 
     // Is incremented every time we execute to keep track of the last execution time for a thread
     current_execution: usize = 1,
@@ -93,13 +94,13 @@ const Scheduler = struct {
         return best_thread.?;
     }
 
-    pub fn fork(self: *Scheduler, ctx: cpu.Context, func: *const anyopaque) !void {
+    pub fn fork(self: *Scheduler, user: bool, func: *const anyopaque) !void {
         const stack = try self.allocator.alloc(u8, stack_size);
         const thread = try self.threads.addOne();
         thread.* = Thread{
             .state = Thread.State.ready,
             .stack = stack,
-            .ctx = ctx,
+            .ctx = newContext(user),
             .id = self.next_id,
         };
 
@@ -157,25 +158,24 @@ fn isr(ctx: *cpu.Context) callconv(.C) void {
     kernel.arch.lapic.getLapic().setTimerNs(quanta);
 }
 
-pub fn newContext(supervisor: bool) cpu.Context {
-    if (supervisor) {
+pub fn newContext(user: bool) cpu.Context {
+    if (user) {
         return cpu.Context{
-            .cs = gdt.kernel_cs,
-            .ss = gdt.kernel_ds,
+            .cs = gdt.user_cs,
+            .ss = gdt.user_ds,
             .rflags = rflag_default,
         };
     }
     return cpu.Context{
-        .cs = gdt.user_cs,
-        .ss = gdt.user_ds,
+        .cs = gdt.kernel_cs,
+        .ss = gdt.kernel_ds,
         .rflags = rflag_default,
     };
 }
 
 pub fn init(alloc: std.mem.Allocator, initial: *const anyopaque) void {
-
     scheduler = Scheduler.init(alloc) catch @panic("failed to init scheduler");
-    scheduler.fork(newContext(true), initial) catch @panic("failed to fork initial thread");
+    scheduler.fork(false, initial) catch @panic("failed to fork initial thread");
 
     const vec = kernel.arch.idt.registerInterrupt(isr, 0);
     kernel.arch.lapic.getLapic().setTimerIsr(vec, kernel.arch.lapic.APIC.TimerVec.Mode.one_shot);

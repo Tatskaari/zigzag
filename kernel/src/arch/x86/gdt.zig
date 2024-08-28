@@ -54,14 +54,14 @@ const kernel_data = SegmentDescriptor{
 const user_code = SegmentDescriptor{
     .access = .{
         .is_code = true,
-        .ring = 0,
+        .ring = 3,
     },
 };
 
 const user_data = SegmentDescriptor{
     .access = .{
         .is_code = false,
-        .ring = 0,
+        .ring = 3,
     },
 };
 
@@ -73,10 +73,11 @@ const GDT = [5]SegmentDescriptor{
     user_data,
 };
 
-pub const kernel_cs = 1 * @sizeOf(SegmentDescriptor);
-pub const kernel_ds = 2 * @sizeOf(SegmentDescriptor);
-pub const user_cs = 3 * @sizeOf(SegmentDescriptor);
-pub const user_ds = 4 * @sizeOf(SegmentDescriptor);
+// The selector is the offset into the gdt or'ed with the ring
+pub const kernel_cs = 1 * @sizeOf(SegmentDescriptor) | 0;
+pub const kernel_ds = 2 * @sizeOf(SegmentDescriptor) | 0;
+pub const user_cs = (3 * @sizeOf(SegmentDescriptor)) | 3;
+pub const user_ds = (4 * @sizeOf(SegmentDescriptor)) | 3;
 
 const Gdtr = packed struct(u80) {
     limit: u16,

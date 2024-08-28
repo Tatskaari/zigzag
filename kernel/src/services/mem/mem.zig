@@ -54,6 +54,7 @@ pub fn mmap(
     ptr: ?[*]align(arch.paging.page_alignment) u8,
     length: usize,
     prot: u32,
+    user: bool,
 ) std.mem.Allocator.Error![]align(arch.paging.page_alignment) u8 {
     const pt = arch.paging.getCurrentPageTable();
     const pages_needed = @divExact(length, arch.paging.page_alignment);
@@ -66,7 +67,7 @@ pub fn mmap(
         try pt.map(address, arch.paging.pageAddressFromNumber(page), arch.paging.MapOptions{
             .no_exec = (prot & PROT.EXEC == 0),
             .writable = prot & PROT.WRITE != 0,
-            .user = false,
+            .user = user,
         });
         address = address + arch.paging.page_alignment;
     }

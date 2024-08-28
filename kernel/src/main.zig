@@ -66,7 +66,7 @@ var lock = kernel.util.Lock{};
 
 fn main() noreturn {
     const sched = kernel.services.scheduler;
-    _ = sched.scheduler.fork(sched.newContext(true), &main2) catch @panic("wahhhh");
+    _ = sched.scheduler.fork(false, &main2) catch @panic("wahhhh");
     var i: usize = 0;
     while (true) {
         lock.lock();

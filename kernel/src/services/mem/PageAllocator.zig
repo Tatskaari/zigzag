@@ -30,6 +30,7 @@ fn alloc(_: *anyopaque, n: usize, _: u8, _: usize) ?[*]u8 {
         hint,
         aligned_len,
         mem.PROT.READ | mem.PROT.WRITE,
+        false,
     ) catch return null;
     assert(std.mem.isAligned(@intFromPtr(slice.ptr), arch.paging.page_alignment));
     const new_hint: [*]align(arch.paging.page_alignment) u8 = @alignCast(slice.ptr + aligned_len);
