@@ -231,7 +231,7 @@ pub const RootTable = struct {
 
         // Level 1: Page table
         const pt_entry = pd_entry.getTable().entries[virtual_address.page_table];
-        if (!pd_entry.present) {
+        if (!pt_entry.present) {
             return null;
         }
 
@@ -243,9 +243,9 @@ pub const RootTable = struct {
     pub fn findRange(self: *RootTable, hint: usize, page_count: usize) usize {
         var address: usize = hint;
 
-        while(!self.checkRange(address + page_count*page_alignment, page_count)) {
+        while(!self.checkRange(address, page_count)) {
             // TODO probably want to implement some kind of max address rather than just litting this integer overflow
-            address = address + page_count*page_alignment;
+            address = address + page_alignment;
         }
         return address;
     }

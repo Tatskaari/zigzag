@@ -95,7 +95,7 @@ const Scheduler = struct {
     }
 
     pub fn fork(self: *Scheduler, user: bool, func: *const anyopaque) !void {
-        const stack = try self.allocator.alloc(u8, stack_size);
+        const stack = try mem.mmap(null, stack_size, mem.PROT.READ | mem.PROT.WRITE, user);
         const thread = try self.threads.addOne();
         thread.* = Thread{
             .state = Thread.State.ready,
