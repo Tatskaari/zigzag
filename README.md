@@ -27,6 +27,7 @@ The roadmap to achieve this is:
 - [x] Paging: mmap and a std.heap.PageAllocator
 - [x] Lapic timer
 - [x] Scheduler (basic scheduling of threads)
+  - [ ] Set up the TSS and get exceptions handled from threads
   - [ ] Implement wait, yield and sleep
   - [ ] Implement an event queue and terminal thread that listens to keyboard events
   - [ ] Run lspci from the keybaord listener as a thread

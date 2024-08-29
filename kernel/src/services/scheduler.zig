@@ -106,6 +106,7 @@ const Scheduler = struct {
 
         self.next_id += 1;
 
+        // TODO we need to translate these to virtual addresses for the child thread
         thread.ctx.rip = @intFromPtr(func);
         // The stack grows down
         thread.ctx.rbp = @intFromPtr(stack.ptr) + stack.len;

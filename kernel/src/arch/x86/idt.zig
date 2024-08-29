@@ -2,6 +2,7 @@
 /// requests
 
 const cpu = @import("cpu.zig");
+const gdt = @import("gdt.zig");
 
 /// Vectors under this value are x86 architecture registers e.g. page fault, or div by zero. This vector, and anything
 /// above are defined by this kernel.
@@ -51,7 +52,7 @@ pub fn setDescriptor(vector: u8, comptime isr: Interrupt, ring: u2, kind: IDTEnt
     entry.isr_low = @truncate(isrPtr & 0xFFFF);
     entry.isr_mid = @truncate((isrPtr >> 16) & 0xFFFF);
     entry.isr_high = @truncate(isrPtr >> 32);
-    entry.kernel_cs = cpu.getCS();
+    entry.kernel_cs = gdt.kernel_cs;
     entry.flags = IDTEntry.Flags{
         .ring = ring,
         .kind = kind,
