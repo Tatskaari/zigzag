@@ -65,38 +65,14 @@ pub fn stage1() void {
 var lock = kernel.util.Lock{};
 
 fn main() noreturn {
-    const sched = kernel.services.scheduler;
-    _ = sched.scheduler.fork(false, &main2) catch @panic("wahhhh");
-    var i: usize = 0;
-    while (true) {
-        lock.lock();
-        kernel.debug.print("main 1: got scheduled! {}\n", .{i});
-        lock.unlock();
-        i += 1;
-        for(0..5000000) |_| {}
-    }
+    kernel.arch.pci.lspci();
     done();
 }
 
-fn main2() noreturn {
-    var i: usize = 0;
-    while (true) {
-        lock.lock();
-        kernel.debug.print("main 2: got scheduled! {}\n", .{i});
-        i += 1;
-
-        for(0..500000000) |_| {}
-        lock.unlock();
-        for(0..500000000) |_| {}
-    }
-    done();
-}
 
 // The following will be our kernel's entry point.
 export fn _start() callconv(.C) noreturn {
     stage1();
-    // kernel.arch.pci.lspci();
-
     // Passes off control to the main thread above.
     kernel.services.scheduler.scheduler.start();
 }

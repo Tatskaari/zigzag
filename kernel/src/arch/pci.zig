@@ -2,20 +2,33 @@ const std = @import("std");
 const arch = @import("index.zig");
 const kernel = @import("kernel");
 // THese are teh ports that PCI uses to enable software to read the PCI config
-const PCI_CONFIG_ADDRESS = 0xCF8;
-const PCI_CONFIG_DATA = 0xCFC;
+const pci_config_address = 0xCF8;
+const pci_config_data = 0xCFC;
 
-const INVALID_VENDOR = 0xFFFF;
+const config_bar_offset = 0x10;
 
-const Class = enum(u8) {
-    Unclassified,
-    MassStorage,
-    Network,
-    Display,
-    Multimedia,
-    Memory,
-    Bridge,
-    _
+const invalid_vendor = 0xFFFF;
+
+// VirtIO vendors are always this value
+pub const virtio_vendor_id = 0x1AF4;
+
+// VirtIO device IDs must be between this range
+pub const virtio_device_id_start = 0x1000;
+pub const virtio_device_id_end = 0x103F;
+
+pub const Class = enum(u8) { Unclassified, MassStorage, Network, Display, Multimedia, Memory, Bridge, _ };
+
+pub const MassstorageSubclasses = enum(u8) {
+    Scsi,
+    Ide,
+    Floppy,
+    IpiBus,
+    Raid,
+    Ata,
+    Sata,
+    SaScsi,
+    Nvm,
+    Other = 0x80,
 };
 
 pub const PciAddress = packed struct {
@@ -27,16 +40,10 @@ pub const PciAddress = packed struct {
     enable: u1,
 };
 
-fn format_class(class: u8) [*:0]const u8 {
-    const c : Class = @enumFromInt(class);
+fn formatClass(class: u8) [*:0]const u8 {
+    const c: Class = @enumFromInt(class);
     switch (c) {
-        Class.Unclassified,
-        Class.MassStorage,
-        Class.Network,
-        Class.Display,
-        Class.Multimedia,
-        Class.Bridge,
-        Class.Memory => {
+        Class.Unclassified, Class.MassStorage, Class.Network, Class.Display, Class.Multimedia, Class.Bridge, Class.Memory => {
             return @tagName(c);
         },
         _ => return "Unknown",
@@ -53,11 +60,11 @@ fn format_class(class: u8) [*:0]const u8 {
 //     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 // 0xC |cache line size| latency timer |   header type |      bist     |
 //     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-const Offset = enum (u8) {
-    DeviceID = 0x0,
-    VendorID = 0x2,
-    Status = 0x4,
-    Command = 0x6,
+const Offset = enum(u8) {
+    VendorID = 0x0,
+    DeviceID = 0x2,
+    Command = 0x4,
+    Status = 0x6,
     RevisionID = 0x8,
     ProgIF = 0x9,
     Subclass = 0xA,
@@ -66,6 +73,23 @@ const Offset = enum (u8) {
     LatencyTimer = 0xD,
     HeaderType = 0xE,
     Bist = 0xF,
+};
+
+const CommonHeaderZeroOffsets = enum(u8) {
+    SubsystemID = 0x2C,
+};
+
+/// BaseAddressRegister represents the base address of a PCI device.
+pub const BaseAddressRegister = struct {
+    // Whether this address is an io address or a memory address
+    isIoMapped: bool,
+    isPrefetchable: bool, // Only relevant for memory mapped
+    address: usize,
+};
+
+pub const HeaderTypeResponse = packed struct(u8) {
+    type: u7,
+    is_multi_function: bool,
 };
 
 pub const PciDevice = struct {
@@ -84,72 +108,158 @@ pub const PciDevice = struct {
         };
     }
 
-    pub fn is_empty(self: PciDevice) bool {
-        return self.vendor_id() == INVALID_VENDOR;
+    pub fn isEmpty(self: PciDevice) bool {
+        return self.vendorId() == invalid_vendor;
     }
 
     // Common headers
-    pub fn vendor_id(self: PciDevice) u16 {
-        return self.config_read(u16, @intFromEnum(Offset.VendorID));
+    pub fn vendorId(self: PciDevice) u16 {
+        return self.configRead(u16, @intFromEnum(Offset.VendorID));
     }
 
-    pub fn device(self: PciDevice) u16 {
-        return self.config_read(u16, @intFromEnum(Offset.DeviceID));
+    pub fn deviceId(self: PciDevice) u16 {
+        return self.configRead(u16, @intFromEnum(Offset.DeviceID));
     }
     pub fn subclass(self: PciDevice) u8 {
-        return self.config_read(u8, @intFromEnum(Offset.Subclass));
+        return self.configRead(u8, @intFromEnum(Offset.Subclass));
     }
     pub fn class(self: PciDevice) u8 {
-        return self.config_read(u8, @intFromEnum(Offset.Class));
+        return self.configRead(u8, @intFromEnum(Offset.Class));
     }
-    pub fn header_type(self: PciDevice) u8 {
-        return self.config_read(u8, @intFromEnum(Offset.HeaderType));
+    pub fn headerType(self: PciDevice) HeaderTypeResponse {
+        return @bitCast(self.configRead(u8, @intFromEnum(Offset.HeaderType)));
     }
 
-    pub fn intr_line(self: PciDevice) u8 {
-        return self.config_read(u8, 0x3c);
+    pub fn subsystemID(self: PciDevice) u16 {
+        return self.configRead(u16, CommonHeaderZeroOffsets.SubsystemID);
     }
-    pub fn bar(self: PciDevice, n: usize) u32 {
-        return self.config_read(u32, 0x10 + 4 * n);
+
+    pub fn intrLine(self: PciDevice) u8 {
+        return self.configRead(u8, 0x3c);
     }
+    
+    pub fn baseAddressReg(self: PciDevice, n: u8) BaseAddressRegister {
+        const resp: BarResponse = @bitCast(self.configRead(u32, config_bar_offset + n*@sizeOf(u32)));
+        var ret = BaseAddressRegister{
+            .is_io_mapped = resp.is_io_mapped,
+            .address = resp.address,
+        };
+
+        if(!resp.is_io_mapped) {
+            ret.isPrefetchable = resp.memoryMapped().prefetchable;
+        }
+
+        // Check if we're fetching a wide memory mapped address.
+        if(resp.is_io_mapped or resp.memoryMapped().type == BarResponse.Mem.Type.Small) {
+            return resp;
+        }
+
+        const address_lo = self.configRead(u32, config_bar_offset + (n+1)*@sizeOf(u32));
+        ret.address = (ret.address << 32) + address_lo;
+
+        if(!ret.isIoMapped) {
+            ret.address = kernel.services.mem.hhdm.virtualFromPhysical(ret.address);
+        }
+        return ret;
+    }
+
     // only for header_type == 0
     pub fn subsystem(self: PciDevice) u16 {
-        return self.config_read(u8, 0x2e);
+        return self.configRead(u8, 0x2e);
     }
 
     pub fn format(self: PciDevice) void {
-        const slot : u8 = @intCast(self.slot);
-        const function : u8 = @intCast(self.function);
+        const slot: u8 = @intCast(self.slot);
+        const function: u8 = @intCast(self.function);
 
-        kernel.debug.print("Bus {}, slot {}, function {}: ", .{self.bus, slot, function});
-        kernel.debug.print(" class: {s}, subclass: {}, vendor id: {}\n", .{format_class(self.class()), self.subclass(), self.vendor_id()});
+        kernel.debug.print("Bus {}, slot {}, function {}: ", .{ self.bus, slot, function });
+        kernel.debug.print(" class: {s}, subclass: {}, device id: 0x{x} vendor id: 0x{x} hdr_type {}|{}\n", .{ formatClass(self.class()), self.subclass(), self.deviceId(), self.vendorId(), self.headerType().type, self.headerType().is_multi_function});
     }
 
-    pub inline fn config_read(self: PciDevice, comptime size: type, offset: u8) size {
+    pub inline fn configRead(self: PciDevice, comptime size: type, offset: u8) size {
         // ask for access before reading config
-        arch.ports.outl(PCI_CONFIG_ADDRESS, @bitCast(self.address(offset)));
+        arch.ports.outl(pci_config_address, @bitCast(self.address(offset)));
         switch (size) {
-        // read the correct size
-            u8 => return arch.ports.inb(PCI_CONFIG_DATA),
-            u16 => return arch.ports.inw(PCI_CONFIG_DATA),
-            u32 => return arch.ports.inl(PCI_CONFIG_DATA),
+            // read the correct size
+            u8 => return arch.ports.inb(pci_config_data),
+            u16 => return arch.ports.inw(pci_config_data),
+            u32 => return arch.ports.inl(pci_config_data),
             else => @compileError("pci only support reading up to 32 bits"),
         }
     }
+
+    pub fn init(bus: u8, slot: u5, function: u3) PciDevice {
+        return PciDevice{ .bus = bus, .slot = slot, .function = function };
+    }
+
+    /// The response we get from the base address register. This isn't useful so we want to clean this up and returns a 64
+    /// bit address back outside of this package.
+    const BarResponse = packed struct(u32) {
+        // Whether the address is io mapped or memory mapped
+        is_io_mapped: bool,
+        address: u31,
+
+        pub const Mem = packed struct(u32) {
+            is_io_mapped: bool,
+            type: Type,
+            prefetchable: bool,
+            address: u28,
+
+            pub const Type = enum(u2) {
+                Small,
+                Reserved,
+                Wide
+            };
+        };
+
+        pub const Io = packed struct(u32) {
+            is_io_mapped: bool,
+            reserved: u1,
+            address: u32,
+        };
+
+        pub fn memoryMapped(self: *const BarResponse) Mem {
+            return @bitCast(self.*);
+        }
+
+        pub fn ioMapped(self: *const BarResponse) Io {
+            return @bitCast(self.*);
+        }
+    };
 };
 
-pub fn device(bus: u8, slot: u5, function: u3) PciDevice {
-    return PciDevice{ .bus = bus, .slot = slot, .function = function };
+pub const DeviceIterator = struct {
+    slot: u8 = 0,
+    function: u8 = 0,
+
+    pub fn next(self: *DeviceIterator) ?PciDevice {
+        if (self.slot == 32) {
+            return null;
+        }
+
+        const dev = PciDevice.init(0, @intCast(self.slot), @intCast(self.function));
+
+        if (self.function == 7) {
+            self.function = 0;
+            self.slot += 1;
+        } else {
+            self.function += 1;
+        }
+
+        if (dev.isEmpty()) {
+            return self.next();
+        }
+        return dev;
+    }
+};
+
+pub fn iterator() DeviceIterator {
+    return .{};
 }
 
 pub fn lspci() void {
-    for (0..32) |slot| {
-        for (0..8) |function | {
-            const dev = device(0, @intCast(slot), @intCast(function));
-            if (dev.is_empty()) {
-                continue;
-            }
-            dev.format();
-        }
+    var itr = DeviceIterator{};
+    while (itr.next()) |dev| {
+        dev.format();
     }
 }
